@@ -13,8 +13,11 @@ const MAX_MSG = 16 * 1024, MAX_PRESENCE = 8 * 1024, MAX_PER_ROOM = 16, MAX_ROOMS
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
-  if (url === '/' || url === '/index.html') {
-    fs.readFile(PAGE, (err, buf) => {
+  // "/" -> public/index.html, "/camtest" -> public/camtest.html (only plain page names, nothing else on disk)
+  const name = url === '/' ? 'index' : url.replace(/^\//, '').replace(/\.html$/, '');
+  if (/^[a-z0-9-]+$/.test(name)) {
+    fs.readFile(name === 'index' ? PAGE : path.join(__dirname, 'public', name + '.html'), (err, buf) => {
+      if (err && name !== 'index') { res.writeHead(404); return res.end('Not found'); }
       if (err) { res.writeHead(500); return res.end('index.html missing'); }
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' });
       res.end(buf);
