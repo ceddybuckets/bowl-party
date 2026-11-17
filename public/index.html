@@ -12,7 +12,7 @@
 <style>
   :root { --ink:#1d2a44; --sky:#2f9bff; --sky2:#1a7be0; --soft:#eef5ff; --card:rgba(255,255,255,.94); }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { margin:0; height:100%; overflow:hidden; background:#0d1633; font-family:Fredoka, system-ui, sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
+  html,body { -webkit-touch-callout:none; margin:0; height:100%; overflow:hidden; background:#0d1633; font-family:Fredoka, system-ui, sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
   #gl { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   #trail { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; }
   .screen { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); background:radial-gradient(120% 80% at 50% 0%, #4fb4ff 0%, #2a7fe0 45%, #173f9e 100%); z-index:20; overflow:auto; }
@@ -65,6 +65,11 @@
   #holdBtn.held { transform:translateY(4px); box-shadow:0 2px 0 #165fb3; background:radial-gradient(circle at 40% 35%, #ffd76a, #f29a12); }
   #meter { display:none; width:160px; height:12px; border-radius:6px; background:rgba(255,255,255,.4); overflow:hidden; }
   #meterBar { height:100%; width:0; background:linear-gradient(90deg,#4cd47c,#ffd34d,#ff4d4d); transition:width .05s; }
+  .aimBtn { position:absolute; top:50%; transform:translateY(-50%); width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,.85); font-size:24px; color:var(--sky2); display:none; place-items:center; pointer-events:auto; box-shadow:0 4px 14px rgba(0,0,0,.3); touch-action:none; }
+  #aimL { left:calc(env(safe-area-inset-left) + 12px); } #aimR { right:calc(env(safe-area-inset-right) + 12px); }
+  #sideHint { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%); background:rgba(20,30,60,.88); color:#fff; padding:10px 16px; border-radius:16px; font-size:17px; display:none; text-align:center; }
+  #optin { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:calc(100% - 32px); max-width:380px; max-height:calc(100% - 24px); overflow:auto; pointer-events:auto; display:none; padding:16px 18px; }
+  #optin .btn { padding:11px; margin-top:10px; }
   #skipBtn { pointer-events:auto; display:none; }
   #banner { position:fixed; left:0; right:0; top:34%; text-align:center; z-index:15; pointer-events:none; font-size:64px; font-weight:700; color:#fff; letter-spacing:1px; text-shadow:0 4px 0 #c0392b, 0 10px 30px rgba(0,0,0,.4); opacity:0; transform:scale(.6); transition:opacity .2s, transform .35s cubic-bezier(.2,1.6,.4,1); }
   #banner.on { opacity:1; transform:scale(1); }
@@ -156,10 +161,19 @@
     <button class="ibtn" id="bMenu" title="Menu">☰</button>
   </div>
   <div id="framebox"></div>
+  <button class="aimBtn" id="aimL" aria-label="Move left">◀</button>
+  <button class="aimBtn" id="aimR" aria-label="Move right">▶</button>
+  <div id="sideHint">📱 Hold your phone on its edge: screen facing left, volume buttons down</div>
+  <div id="optin" class="card">
+    <div style="font-size:34px;text-align:center">📱 🎳</div>
+    <h2 id="optTitle" style="text-align:center;margin:4px 0 6px">Bowl by swinging your phone</h2>
+    <p class="note" style="margin:0;text-align:center">Hold your phone on its edge like a ball, screen facing left and volume buttons down. Keep your thumb on the screen, swing your arm back and forward, and lift your thumb to let go. Your phone will ask to use its motion sensors.</p>
+    <button class="btn green" id="bOptIn">Turn on motion controls</button>
+    <button class="btn alt" id="bOptOut">Use swipe instead</button>
+  </div>
   <div id="bottom">
     <button class="btn alt" id="skipBtn" style="width:auto;padding:8px 16px;font-size:16px;margin:0"></button>
     <div id="meter"><div id="meterBar"></div></div>
-    <button id="holdBtn">HOLD<br><span style="font-size:13px;font-weight:500">swing &amp; let go</span></button>
     <div id="prompt"></div>
     <div id="modeRow"></div>
   </div>
@@ -181,6 +195,11 @@
     <h2 id="menuTitle">Menu</h2>
     <p class="note" id="menuInfo" style="margin-top:0"></p>
     <div class="qr" id="qrMenu"></div>
+    <div id="swingSettings" style="display:none;margin:4px 0 8px">
+      <label for="sens">Swing power <span id="sensVal">100%</span></label>
+      <input type="range" id="sens" min="0.6" max="1.6" step="0.05" style="padding:0;border:0;background:none">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:16px;color:var(--ink)"><input type="checkbox" id="flipHook" style="width:22px;height:22px"> Flip hook direction</label>
+    </div>
     <button class="btn" id="bResume">Back to the lane</button>
     <button class="btn alt" id="bQuit">Leave game</button>
   </div>
@@ -783,6 +802,7 @@ const canBowl = () => G && !anim && isMyTurn() && $('hud').classList.contains('o
 canvas.addEventListener('pointerdown', e => {
   audio();
   if (!canBowl()) return;
+  if (usingSwing()) { if (!grip) startGrip(e.pointerId); return; }
   gest = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }], mode: null, ax: aimX };
   try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
 });
@@ -826,42 +846,82 @@ function analyzeSwipe(P) {
 }
 function pushAim() { if (mode === 'online' && R) R.presence({ ax: +aimX.toFixed(3) }).catch(() => {}); }
 
-// ---- swing (motion) mode: only works where the page can read motion sensors ----
+// ---- swing (motion) controls: phone sideways, hold the screen = grip, let go = release ----
 const motionCapable = typeof window.DeviceMotionEvent !== 'undefined' && ('ontouchstart' in window) && !window.claude;
-let motionOn = false, gotMotion = false, mBuf = [];
+let motionOn = false, motionReady = false, motionPending = false, gotMotion = false, mBuf = [], optinDismissed = false;
+let inputPref = LS.get('bowl.input', null);
+let swingSens = clamp(+LS.get('bowl.sens', 1) || 1, 0.6, 1.6), hookFlip = !!LS.get('bowl.flip', false);
+let grip = null, sideways = null;
+const setPref = p => { inputPref = p; LS.set('bowl.input', p); };
+const usingSwing = () => motionReady && inputPref !== 'swipe';
+const swingUIOn = () => usingSwing() && G && isMyTurn() && !anim && $('hud').classList.contains('on');
+// rotation split into the arm swing (around a horizontal axis) and the wrist twist (around vertical), using gravity
+function swingRate(s) { const [x, y, z] = s.r; if (!s.u) return Math.hypot(x, y, z); const d = x * s.u[0] + y * s.u[1] + z * s.u[2]; return Math.sqrt(Math.max(0, x * x + y * y + z * z - d * d)); }
+const twistRate = s => s.u ? s.r[0] * s.u[0] + s.r[1] * s.u[1] + s.r[2] * s.u[2] : 0;
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 function onMotion(e) {
   const r = e.rotationRate; if (!r) return; gotMotion = true;
-  mBuf.push({ t: performance.now(), a: r.alpha || 0, b: r.beta || 0, g: r.gamma || 0 });
-  if (mBuf.length > 240) mBuf.shift();
-  if (hold.classList.contains('held')) {
-    const now = performance.now(), pk = Math.max(0, ...mBuf.filter(s => now - s.t < 450).map(s => Math.hypot(s.a, s.b)));
-    $('meterBar').style.width = clamp((pk - 100) / 900, 0, 1) * 100 + '%';
+  const gi = e.accelerationIncludingGravity, la = e.acceleration;
+  let u = null;
+  if (gi && gi.x != null) {
+    const ux = gi.x - ((la && la.x) || 0), uy = gi.y - ((la && la.y) || 0), uz = gi.z - ((la && la.z) || 0), n = Math.hypot(ux, uy, uz);
+    if (n > 3) u = [ux / n, uy / n, uz / n];
   }
+  const s = { t: performance.now(), r: [r.beta || 0, r.gamma || 0, r.alpha || 0], u };
+  mBuf.push(s); if (mBuf.length > 400) mBuf.shift();
+  if (grip) $('meterBar').style.width = clamp((swingRate(s) - 80) / 800, 0, 1) * 100 + '%';
+  else if (u) { const side = Math.abs(u[0]) > 0.7; if (side !== sideways) { sideways = side; updateSideHint(); } }
 }
-async function enableMotion() {
+async function enableMotion(quiet) {
+  if (motionPending) return false;
+  motionPending = true;
   try {
     const req = typeof DeviceMotionEvent.requestPermission === 'function' ? DeviceMotionEvent.requestPermission() : null;
     if (req && (await req) !== 'granted') throw 0;
     if (!motionOn) { window.addEventListener('devicemotion', onMotion); motionOn = true; }
-    await new Promise(r => setTimeout(r, 600));
+    if (!gotMotion) await new Promise(r => setTimeout(r, 800));
     if (!gotMotion) throw 0;
-    return true;
-  } catch (e) { toast("Motion sensors aren't available on this page — swipe to bowl instead.", 3600); return false; }
+    motionReady = true; return true;
+  } catch (e) {
+    if (!quiet) toast('Motion access is blocked. Close and reopen Safari, or check Settings → Apps → Safari → Motion & Orientation Access. You can swipe to bowl meanwhile.', 6000);
+    optinDismissed = true; return false;
+  } finally { motionPending = false; refresh(); }
 }
-const hold = $('holdBtn');
-hold.addEventListener('pointerdown', e => { e.preventDefault(); audio(); if (!canBowl()) return; mBuf = []; $('meterBar').style.width = '0%'; hold.classList.add('held'); });
-const release = () => {
-  if (!hold.classList.contains('held')) return; hold.classList.remove('held');
-  const now = performance.now(), rec = mBuf.filter(s => now - s.t < 450);
-  if (rec.length < 5) { toast('Hold the button, swing your arm forward, then let go'); return; }
-  const peak = Math.max(...rec.map(s => Math.hypot(s.a, s.b)));   // arm swing (pitch + yaw), ignoring wrist twist
-  if (peak < 120) { toast('Swing a little harder!'); return; }
-  const last = rec.filter(s => now - s.t < 130), gAvg = last.reduce((a, s) => a + s.g, 0) / Math.max(1, last.length);
-  let yaw = 0; rec.filter(s => now - s.t < 250).forEach(s => yaw += s.a / 60);
-  const sp = Math.abs(gAvg) < 50 ? 0 : -(gAvg - Math.sign(gAvg) * 50) / 350;
-  bowl({ x: aimX, v: clamp(4.5 + (peak - 150) / 850 * 6, 4.5, 10.8), a: clamp(-yaw * 0.0025, -0.045, 0.045), s: clamp(sp, -1, 1) });
-};
-hold.addEventListener('pointerup', release); hold.addEventListener('pointercancel', release); hold.addEventListener('pointerleave', release);
+// once someone has opted in, their first tap on each visit turns motion back on
+document.addEventListener('click', () => { if (motionCapable && inputPref === 'swing' && !motionReady) enableMotion(true); }, true);
+function startGrip(id) { grip = { id, t: performance.now() }; $('meterBar').style.width = '0%'; updateSideHint(); $('prompt').innerHTML = '<div class="big">Swing!</div><div class="small">Let go to release</div>'; }
+function releaseGrip() {
+  const g0 = grip; grip = null; updateSideHint();
+  const now = performance.now(), rec = mBuf.filter(s => s.t >= g0.t - 50);
+  if (now - g0.t < 250 || rec.length < 8) { toast('Hold the screen, swing your arm back and forward, then let go'); refresh(); return; }
+  const peak = Math.max(...rec.map(swingRate));
+  if (peak < 110) { toast('Swing your arm back and forward, then let go'); refresh(); return; }
+  const relSp = avg(rec.filter(s => now - s.t < 110).map(swingRate));
+  const tw = avg(rec.filter(s => now - s.t < 160).map(twistRate));
+  let sp = Math.abs(tw) < 45 ? 0 : -(tw - Math.sign(tw) * 45) / 260;
+  if (hookFlip) sp = -sp;
+  if (relSp < peak * 0.45) toast('Tip: let go near the bottom of your swing for full power');
+  bowl({ x: aimX, v: clamp((4.5 + (relSp - 110) / 650 * 6) * swingSens, 4.5, 10.8), a: 0, s: clamp(sp, -1, 1) });
+}
+const endGrip = e => { if (grip && e.pointerId === grip.id) releaseGrip(); };
+window.addEventListener('pointerup', endGrip); window.addEventListener('pointercancel', endGrip);
+function updateSideHint() { $('sideHint').style.display = swingUIOn() && !grip && sideways === false ? 'block' : 'none'; }
+// aim buttons (thumb is busy gripping, so no dragging in swing mode)
+let aimTimer = null;
+const aimStop = () => { clearInterval(aimTimer); aimTimer = null; };
+for (const [id, dir] of [['aimL', -1], ['aimR', 1]]) {
+  const el = $(id);
+  el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const step = () => { aimX = clamp(aimX + dir * 0.012, -0.42, 0.42); pushAim(); }; step(); aimStop(); aimTimer = setInterval(step, 30); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, aimStop));
+}
+$('bOptIn').onclick = () => { setPref('swing'); optinDismissed = false; enableMotion(false); };
+$('bOptOut').onclick = () => { setPref('swipe'); refresh(); };
+// swing settings in the menu
+$('swingSettings').style.display = motionCapable ? 'block' : 'none';
+$('sens').value = swingSens; $('sensVal').textContent = Math.round(swingSens * 100) + '%';
+$('sens').oninput = e => { swingSens = clamp(+e.target.value, 0.6, 1.6); LS.set('bowl.sens', swingSens); $('sensVal').textContent = Math.round(swingSens * 100) + '%'; };
+$('flipHook').checked = hookFlip;
+$('flipHook').onchange = e => { hookFlip = e.target.checked; LS.set('bowl.flip', hookFlip); };
 
 // ================= HUD / screens =================
 function show(id) {
@@ -880,14 +940,23 @@ function refresh() {
   else if (!cur) pr.innerHTML = '';
   else if (mine) {
     const who = mode === 'local' ? `${esc(nameOf(cur))}'s turn` : 'Your turn!';
-    const how = inputMode === 'swing' ? 'Hold the button, swing your arm back and forward, let go to release.<br>Twist your wrist as you let go to hook.' : 'Drag sideways to line up · swipe up to bowl<br>Curve your swipe to hook the ball';
+    const how = usingSwing() ? 'Screen facing left, volume buttons down. Thumb on the screen, swing, lift your thumb to bowl.<br>◀ ▶ to line up · twist your wrist as you let go to hook' : 'Drag sideways to line up · swipe up to bowl<br>Curve your swipe to hook the ball';
     pr.innerHTML = `<div class="big">${who}</div><div class="small">${how}</div>`;
   } else if (mode === 'online' && !G.order.includes(myPid)) pr.innerHTML = `<div class="big">Watching</div><div class="small">This game started before you joined — you're in the next one.</div>`;
   else pr.innerHTML = `<div class="big">${esc(nameOf(cur))} is up</div><div class="small">Watch their throw live</div>`;
-  const showModes = motionCapable && mine && !anim;
-  $('modeRow').innerHTML = showModes ? `<button class="seg${inputMode === 'swipe' ? ' on' : ''}" data-m="swipe">👆 Swipe</button><button class="seg${inputMode === 'swing' ? ' on' : ''}" data-m="swing">💪 Swing</button>` : '';
-  hold.style.display = inputMode === 'swing' && mine && !anim ? 'block' : 'none';
-  $('meter').style.display = hold.style.display;
+  const optin = motionCapable && mine && !anim && !motionReady && inputPref !== 'swipe' && !optinDismissed;
+  if (optin) {
+    const back = inputPref === 'swing';
+    $('optTitle').textContent = back ? 'Motion controls are off' : 'Bowl by swinging your phone';
+    $('bOptIn').textContent = back ? 'Turn motion controls back on' : 'Turn on motion controls';
+  }
+  $('optin').style.display = optin ? 'block' : 'none';
+  const showModes = motionCapable && mine && !anim && !optin, sw = usingSwing();
+  $('modeRow').innerHTML = showModes ? `<button class="seg${!sw ? ' on' : ''}" data-m="swipe">👆 Swipe</button><button class="seg${sw ? ' on' : ''}" data-m="swing">💪 Swing</button>` : '';
+  const swingOn = swingUIOn();
+  $('meter').style.display = swingOn ? 'block' : 'none';
+  $('aimL').style.display = $('aimR').style.display = swingOn ? 'grid' : 'none';
+  updateSideHint();
   const sk = $('skipBtn');
   if (mode === 'online' && cur && cur !== myPid && !anim && !online.has(cur) && Date.now() - (goneSince[cur] || Date.now()) > 10000) {
     sk.style.display = 'block'; sk.textContent = `${nameOf(cur)} left — skip their turn`; sk.dataset.pid = cur;
@@ -898,8 +967,8 @@ function refresh() {
 }
 $('modeRow').addEventListener('click', async e => {
   const m = e.target.closest('[data-m]'); if (!m) return;
-  if (m.dataset.m === 'swing') { if (await enableMotion()) inputMode = 'swing'; }
-  else inputMode = 'swipe';
+  if (m.dataset.m === 'swing') { setPref('swing'); optinDismissed = false; if (!motionReady) await enableMotion(false); }
+  else setPref('swipe');
   refresh();
 });
 function renderCard() {
