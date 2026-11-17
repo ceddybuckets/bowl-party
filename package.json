@@ -1,0 +1,8 @@
+{
+  "name": "bowl-party",
+  "version": "1.0.0",
+  "description": "Wii-style bowling for friends' phones",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}
