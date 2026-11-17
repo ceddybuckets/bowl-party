@@ -13,6 +13,7 @@
   :root { --ink:#1d2a44; --sky:#2f9bff; --sky2:#1a7be0; --soft:#eef5ff; --card:rgba(255,255,255,.94); }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { -webkit-touch-callout:none; margin:0; height:100%; overflow:hidden; background:#0d1633; font-family:Fredoka, system-ui, sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
+  #root { position:fixed; top:0; left:0; width:100%; height:100%; transform-origin:0 0; overflow:hidden; transition:none; }
   #gl { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
   #trail { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; }
   .screen { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); background:radial-gradient(120% 80% at 50% 0%, #4fb4ff 0%, #2a7fe0 45%, #173f9e 100%); z-index:20; overflow:auto; }
@@ -60,6 +61,7 @@
   #prompt:empty { display:none; }
   #modeRow { display:flex; gap:8px; pointer-events:auto; }
   .seg { background:rgba(255,255,255,.75); border-radius:12px; padding:6px 12px; font-size:14px; font-weight:500; color:var(--ink); }
+  #relRow .seg { background:#eef5ff; border:2px solid #d4e3f7; }
   .seg.on { background:#fff; color:var(--sky2); outline:2px solid var(--sky); }
   #holdBtn { pointer-events:auto; width:120px; height:120px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #6fc3ff, #1f83ea); color:#fff; font-size:22px; font-weight:700; box-shadow:0 6px 0 #165fb3, 0 10px 30px rgba(0,0,0,.35); display:none; touch-action:none; }
   #holdBtn.held { transform:translateY(4px); box-shadow:0 2px 0 #165fb3; background:radial-gradient(circle at 40% 35%, #ffd76a, #f29a12); }
@@ -68,6 +70,10 @@
   .aimBtn { position:absolute; top:50%; transform:translateY(-50%); width:60px; height:60px; border-radius:50%; background:rgba(255,255,255,.85); font-size:24px; color:var(--sky2); display:none; place-items:center; pointer-events:auto; box-shadow:0 4px 14px rgba(0,0,0,.3); touch-action:none; }
   #aimL { left:calc(env(safe-area-inset-left) + 12px); } #aimR { right:calc(env(safe-area-inset-right) + 12px); }
   #sideHint { position:absolute; left:50%; top:42%; transform:translate(-50%,-50%); background:rgba(20,30,60,.88); color:#fff; padding:10px 16px; border-radius:16px; font-size:17px; display:none; text-align:center; }
+  .camlight { flex:1; text-align:center; padding:18px 8px; border-radius:16px; font-size:22px; font-weight:700; background:#e6f9ec; color:#17803f; }
+  .camlight.cov { background:#ffe3e3; color:#c0392b; }
+  #rotTip { position:absolute; left:50%; top:calc(env(safe-area-inset-top) + 64px); transform:translateX(-50%); width:calc(100% - 32px); max-width:380px; pointer-events:auto; display:none; padding:14px 16px; z-index:5; }
+  #rotTip .btn { padding:10px; margin-top:10px; }
   #optin { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:calc(100% - 32px); max-width:380px; max-height:calc(100% - 24px); overflow:auto; pointer-events:auto; display:none; padding:16px 18px; }
   #optin .btn { padding:11px; margin-top:10px; }
   #skipBtn { pointer-events:auto; display:none; }
@@ -101,8 +107,10 @@
 </style>
 </head>
 <body>
+<div id="root">
 <canvas id="gl"></canvas>
 <canvas id="trail"></canvas>
+<video id="camVideo" playsinline muted autoplay style="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none"></video>
 
 <!-- Home -->
 <div class="screen on" id="sHome">
@@ -164,10 +172,16 @@
   <button class="aimBtn" id="aimL" aria-label="Move left">◀</button>
   <button class="aimBtn" id="aimR" aria-label="Move right">▶</button>
   <div id="sideHint">📱 Hold your phone on its edge: screen facing left, volume buttons down</div>
+  <div id="rotTip" class="card">
+    <h2 style="margin:0 0 6px">📱🔒 Stop the screen spinning</h2>
+    <p class="note" style="margin:0">Websites can't lock the screen on iPhone, but you can: swipe down from the top-right corner and tap the <b>Portrait Orientation Lock</b> button (a lock inside a circular arrow). Motion and camera controls work the same with it on.</p>
+    <button class="btn" id="bRotTip">Got it</button>
+  </div>
   <div id="optin" class="card">
     <div style="font-size:34px;text-align:center">📱 🎳</div>
     <h2 id="optTitle" style="text-align:center;margin:4px 0 6px">Bowl by swinging your phone</h2>
-    <p class="note" style="margin:0;text-align:center">Hold your phone on its edge like a ball, screen facing left and volume buttons down. Keep your thumb on the screen, swing your arm back and forward, and lift your thumb to let go. Your phone will ask to use its motion sensors.</p>
+    <p class="note" style="margin:0;text-align:center">Hold your phone on its edge like a ball, screen facing left and volume buttons down. Tap the screen, swing your arm back and forward, and the ball lets go at the bottom of your swing. Your phone will ask to use its motion sensors.</p>
+    <p class="note" style="margin:6px 0 0;text-align:center">Tip: turn on <b>Portrait Orientation Lock</b> in Control Center first so the screen doesn't spin while you swing.</p>
     <button class="btn green" id="bOptIn">Turn on motion controls</button>
     <button class="btn alt" id="bOptOut">Use swipe instead</button>
   </div>
@@ -196,12 +210,31 @@
     <p class="note" id="menuInfo" style="margin-top:0"></p>
     <div class="qr" id="qrMenu"></div>
     <div id="swingSettings" style="display:none;margin:4px 0 8px">
+      <label>When the ball lets go</label>
+      <div id="relRow" style="display:flex;gap:6px;margin-bottom:12px"><button class="seg" data-r="auto" style="flex:1">Auto</button><button class="seg" data-r="hold" style="flex:1">Hold</button><button class="seg" data-r="tap" style="flex:1">Tap</button><button class="seg" data-r="camera" style="flex:1">📷 Cam</button></div>
+      <button class="btn alt" id="bCamSetup" style="display:none;margin:0 0 10px;padding:9px;font-size:16px">Camera button setup</button>
       <label for="sens">Swing power <span id="sensVal">100%</span></label>
       <input type="range" id="sens" min="0.6" max="1.6" step="0.05" style="padding:0;border:0;background:none">
       <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:16px;color:var(--ink)"><input type="checkbox" id="flipHook" style="width:22px;height:22px"> Flip hook direction</label>
     </div>
     <button class="btn" id="bResume">Back to the lane</button>
     <button class="btn alt" id="bQuit">Leave game</button>
+  </div>
+</div>
+<!-- Camera button setup -->
+<div class="modal" id="mCam">
+  <div class="card" style="max-width:380px">
+    <h2 style="margin-bottom:4px">📷 Camera button</h2>
+    <p class="note" style="margin-top:0">Your finger over the rear camera holds the ball. Lift it to let go.</p>
+    <div style="display:flex;gap:14px;align-items:center;margin:10px 0">
+      <video id="camPreview" playsinline muted autoplay style="width:120px;height:90px;border-radius:12px;background:#000;object-fit:cover"></video>
+      <div id="camLight" class="camlight">Open</div>
+    </div>
+    <label for="camSel">Lens</label>
+    <select id="camSel" style="width:100%;font:inherit;font-size:16px;padding:10px;border-radius:12px;border:2px solid #d4e3f7;background:#f7fbff"></select>
+    <p class="note" id="camStep"></p>
+    <button class="btn" id="bCal">Calibrate</button>
+    <button class="btn alt" id="bCamDone">Done</button>
   </div>
 </div>
 <!-- Game over -->
@@ -215,6 +248,7 @@
   </div>
 </div>
 
+</div>
 <script>
 // ===== Bowling physics: pure + deterministic (same inputs -> same result on every phone) =====
 const LANE_HALF = 0.533, HEAD_Z = 18.29, PIN_SP = 0.3048, ROW_D = 0.2639;
@@ -324,6 +358,30 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '') || 'Player';
 let toastT;
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+
+// ---- keep phones in portrait: if the phone turns sideways, rotate the whole game back ----
+let rot = 0, rootW = window.innerWidth, rootH = window.innerHeight;
+function layout() {
+  const W = window.innerWidth, H = window.innerHeight;
+  const phone = window.matchMedia('(pointer: coarse)').matches && Math.min(W, H) < 540;
+  let ang = typeof window.orientation === 'number' ? window.orientation : (screen.orientation ? screen.orientation.angle : 0);
+  if (ang === 270) ang = -90;
+  rot = phone && W > H ? (ang === -90 ? 90 : -90) : 0;
+  const r = $('root');
+  if (rot === -90) { rootW = H; rootH = W; r.style.cssText = `width:${H}px;height:${W}px;transform:translate(0px,${H}px) rotate(-90deg)`; }
+  else if (rot === 90) { rootW = H; rootH = W; r.style.cssText = `width:${H}px;height:${W}px;transform:translate(${W}px,0px) rotate(90deg)`; }
+  else { rootW = W; rootH = H; r.style.cssText = ''; }
+  document.body.classList.toggle('rotated', rot !== 0);
+  if (rot !== 0 && !layout.tipped && !LS.get('bowl.rotTip', false) && $('hud').classList.contains('on')) { layout.tipped = true; $('rotTip').style.display = 'block'; }
+  if (typeof resize === 'function') resize();
+}
+// screen coordinates -> coordinates inside the (possibly rotated) game
+function toLocal(x, y) {
+  if (rot === -90) return { x: window.innerHeight - y, y: x };
+  if (rot === 90) return { x: y, y: window.innerWidth - x };
+  return { x, y };
+}
+window.addEventListener('orientationchange', () => setTimeout(layout, 250));
 
 let myPid = LS.get('bowl.pid', null);
 if (typeof myPid !== 'string' || !/^p[a-z0-9]{9}$/.test(myPid)) { myPid = 'p' + rid(9); LS.set('bowl.pid', myPid); }
@@ -532,11 +590,14 @@ function buildScene() {
   resize();
 }
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
-  if (renderer) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 46 : 34; camera.updateProjectionMatrix(); }
+  const w = rootW, h = rootH, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const key = w + 'x' + h + (renderer ? 'r' : '');
+  if (resize.last === key) return;   // nothing changed (e.g. phone turned but the game stayed portrait)
+  resize.last = key;
+  if (renderer) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 46 : 34; camera.updateProjectionMatrix(); markDirty(); }
   const tr = $('trail'); tr.width = w * dpr; tr.height = h * dpr;
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize', layout);
 
 // ---- overhead scoreboard (drawn onto the screen above the pins) ----
 function drawBoard() {
@@ -585,7 +646,7 @@ function drawBoard() {
     g.fillStyle = isCur ? '#ffd34d' : '#ffffff'; g.font = `700 ${Math.round(Math.min(44, rowH * 0.5))}px Fredoka, sans-serif`;
     g.fillText(String(totalOf(r)), x0 + nameW + 10 * fw + totW / 2, y + rowH / 2);
   });
-  sbTex.needsUpdate = true;
+  sbTex.needsUpdate = true; markDirty();
 }
 
 // ---- posing ----
@@ -766,6 +827,8 @@ function onAnimEnd() {
 
 // ================= render loop =================
 const tgtPos = hasGL ? new THREE.Vector3() : null, tgtLook = hasGL ? new THREE.Vector3() : null;
+let dirty = true, lastIdleAim = null;
+const markDirty = () => { dirty = true; };
 function loop(now) {
   requestAnimationFrame(loop);
   if (anim) {
@@ -780,11 +843,14 @@ function loop(now) {
     camPos.lerp(tgtPos, 0.22); camLook.lerp(tgtLook, 0.22);
     if (anim.ended && now - anim.endT > 1700) { anim = null; hideBanner(); refresh(); }
   } else if (renderer) {
-    tgtPos.set(X3(shownAim()) * 0.6, 1.4, -3.1); tgtLook.set(X3(shownAim()) * 0.25, 0, 13);
+    const sa = shownAim();
+    tgtPos.set(X3(sa) * 0.6, 1.4, -3.1); tgtLook.set(X3(sa) * 0.25, 0, 13);
+    // only redraw while the camera is still settling, the ball moved, or the scene changed
+    if (camPos.distanceToSquared(tgtPos) > 1e-7 || camLook.distanceToSquared(tgtLook) > 1e-7) dirty = true;
     camPos.lerp(tgtPos, 0.12); camLook.lerp(tgtLook, 0.12);
-    if (G && $('hud').classList.contains('on')) { placeBall(shownAim(), 0.35, 0); aimDots.position.x = X3(shownAim()); }
+    if (G && $('hud').classList.contains('on') && sa !== lastIdleAim) { lastIdleAim = sa; placeBall(sa, 0.35, 0); aimDots.position.x = X3(sa); dirty = true; }
   }
-  if (renderer) { camera.position.copy(camPos); camera.lookAt(camLook); renderer.render(scene, camera); }
+  if (renderer && (anim || dirty)) { dirty = false; camera.position.copy(camPos); camera.lookAt(camLook); renderer.render(scene, camera); }
 }
 function shownAim() { const c = curPid(); if (!c) return 0; if (isMyTurn()) return aimX; return clamp(+remoteAim[c] || 0, -0.45, 0.45); }
 function setIdleScene() {
@@ -793,6 +859,7 @@ function setIdleScene() {
   ballMesh.material = ballMaterial(c ? colorOf(c) : COLORS[0]);
   idlePins(c ? currentMask(c) : 1023);
   aimDots.visible = !!c && isMyTurn();
+  lastIdleAim = null; markDirty();
 }
 
 // ================= input: swipe + aim =================
@@ -802,17 +869,17 @@ const canBowl = () => G && !anim && isMyTurn() && $('hud').classList.contains('o
 canvas.addEventListener('pointerdown', e => {
   audio();
   if (!canBowl()) return;
-  if (usingSwing()) { if (!grip) startGrip(e.pointerId); return; }
-  gest = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }], mode: null, ax: aimX };
+  if (usingSwing()) { if (releaseMode === 'camera') { if (!cam.on) camStart(); return; } if (!grip) startGrip(e.pointerId); else if (grip.mode === 'tap') releaseGrip(); return; }
+  gest = { id: e.pointerId, pts: [{ ...toLocal(e.clientX, e.clientY), t: performance.now() }], mode: null, ax: aimX };
   try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
 });
 canvas.addEventListener('pointermove', e => {
   if (!gest || e.pointerId !== gest.id) return;
   const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
-  for (const ev of (evs.length ? evs : [e])) gest.pts.push({ x: ev.clientX, y: ev.clientY, t: performance.now() });
+  for (const ev of (evs.length ? evs : [e])) gest.pts.push({ ...toLocal(ev.clientX, ev.clientY), t: performance.now() });
   const s = gest.pts[0], p = gest.pts[gest.pts.length - 1], dx = p.x - s.x, dy = p.y - s.y;
   if (!gest.mode && Math.hypot(dx, dy) > 14) gest.mode = Math.abs(dx) > Math.abs(dy) * 1.1 ? 'aim' : (dy < 0 ? 'swipe' : 'none');
-  if (gest.mode === 'aim') { aimX = clamp(gest.ax + dx / window.innerWidth * 1.1, -0.42, 0.42); pushAim(); }
+  if (gest.mode === 'aim') { aimX = clamp(gest.ax + dx / rootW * 1.1, -0.42, 0.42); pushAim(); }
   if (gest.mode === 'swipe') drawTrail(gest.pts);
 });
 const endGest = e => {
@@ -822,7 +889,7 @@ const endGest = e => {
 };
 canvas.addEventListener('pointerup', endGest); canvas.addEventListener('pointercancel', endGest);
 function drawTrail(pts) {
-  const dpr = trail.width / window.innerWidth; tctx.clearRect(0, 0, trail.width, trail.height);
+  const dpr = trail.width / rootW; tctx.clearRect(0, 0, trail.width, trail.height);
   tctx.lineCap = 'round'; tctx.lineJoin = 'round';
   for (let i = 1; i < pts.length; i++) {
     const a = i / pts.length; tctx.strokeStyle = `rgba(255,255,255,${0.15 + a * 0.75})`; tctx.lineWidth = (4 + a * 10) * dpr;
@@ -833,10 +900,10 @@ const clearTrail = () => tctx.clearRect(0, 0, trail.width, trail.height);
 function analyzeSwipe(P) {
   if (P.length < 3) return;
   const s = P[0], e = P[P.length - 1];
-  if (s.y - e.y < window.innerHeight * 0.1) { toast('Swipe further up the screen to bowl'); return; }
+  if (s.y - e.y < rootH * 0.1) { toast('Swipe further up the screen to bowl'); return; }
   let k = P.length - 1; while (k > 0 && e.t - P[k].t < 110) k--;
   const seg = P[k], pxms = Math.hypot(e.x - seg.x, e.y - seg.y) / Math.max(16, e.t - seg.t);
-  const sps = pxms * 1000 / window.innerHeight;           // screen-heights per second
+  const sps = pxms * 1000 / rootH;           // screen-heights per second
   const v = clamp(4.5 + (sps - 0.8) * 1.3, 4.5, 10.8);
   let len = 0; const cum = [0]; for (let i = 1; i < P.length; i++) { len += Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y); cum.push(len); }
   const mi = cum.findIndex(c => c >= len / 2), m = P[Math.max(1, Math.min(P.length - 2, mi))];
@@ -852,6 +919,29 @@ let motionOn = false, motionReady = false, motionPending = false, gotMotion = fa
 let inputPref = LS.get('bowl.input', null);
 let swingSens = clamp(+LS.get('bowl.sens', 1) || 1, 0.6, 1.6), hookFlip = !!LS.get('bowl.flip', false);
 let grip = null, sideways = null;
+let releaseMode = ['auto', 'hold', 'tap', 'camera'].includes(LS.get('bowl.release', 'auto')) ? LS.get('bowl.release', 'auto') : 'auto';
+const SWING_THR = 120; // deg/s
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm3 = a => { const n = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / n, a[1] / n, a[2] / n]; };
+// auto-release: find the backswing, then let go just after the forward swing peaks (the bottom of the arc)
+function autoStep(s) {
+  const g0 = grip;
+  g0.ema = g0.ema.map((v, i) => v + (s.r[i] - v) * 0.75);
+  let r = g0.ema;
+  if (s.u) { const d = dot3(r, s.u); r = [r[0] - d * s.u[0], r[1] - d * s.u[1], r[2] - d * s.u[2]]; } // drop wrist twist
+  const mag = Math.hypot(r[0], r[1], r[2]);
+  if (performance.now() - g0.t > 8000) { grip = null; toast('Tap, then swing back and forward to bowl'); refresh(); return; }
+  if (g0.phase === 0 && mag > SWING_THR) { g0.phase = 1; g0.w = r.slice(); }
+  else if (g0.phase === 1) {
+    const wn = norm3(g0.w), p = dot3(r, wn);
+    if (p > 0) g0.w = g0.w.map((v, i) => v + r[i]);
+    if (p < -SWING_THR) { g0.phase = 2; g0.wn = wn; $('prompt').innerHTML = '<div class="big">…and forward!</div>'; }
+  } else if (g0.phase === 2) {
+    const f = -dot3(r, g0.wn);
+    g0.fmax = Math.max(g0.fmax, f);
+    if (g0.fmax > SWING_THR * 1.3 && f < g0.fmax * 0.95) releaseGrip();
+  }
+}
 const setPref = p => { inputPref = p; LS.set('bowl.input', p); };
 const usingSwing = () => motionReady && inputPref !== 'swipe';
 const swingUIOn = () => usingSwing() && G && isMyTurn() && !anim && $('hud').classList.contains('on');
@@ -869,7 +959,7 @@ function onMotion(e) {
   }
   const s = { t: performance.now(), r: [r.beta || 0, r.gamma || 0, r.alpha || 0], u };
   mBuf.push(s); if (mBuf.length > 400) mBuf.shift();
-  if (grip) $('meterBar').style.width = clamp((swingRate(s) - 80) / 800, 0, 1) * 100 + '%';
+  if (grip) { $('meterBar').style.width = clamp((swingRate(s) - 80) / 800, 0, 1) * 100 + '%'; if (grip.mode === 'auto') autoStep(s); }
   else if (u) { const side = Math.abs(u[0]) > 0.7; if (side !== sideways) { sideways = side; updateSideHint(); } }
 }
 async function enableMotion(quiet) {
@@ -888,12 +978,20 @@ async function enableMotion(quiet) {
   } finally { motionPending = false; refresh(); }
 }
 // once someone has opted in, their first tap on each visit turns motion back on
-document.addEventListener('click', () => { if (motionCapable && inputPref === 'swing' && !motionReady) enableMotion(true); }, true);
-function startGrip(id) { grip = { id, t: performance.now() }; $('meterBar').style.width = '0%'; updateSideHint(); $('prompt').innerHTML = '<div class="big">Swing!</div><div class="small">Let go to release</div>'; }
+document.addEventListener('click', () => {
+  if (motionCapable && inputPref === 'swing' && !motionReady) enableMotion(true);
+  if (releaseMode === 'camera' && !cam.on && $('hud').classList.contains('on')) camStart();
+}, true);
+function startGrip(id) {
+  grip = { id, t: performance.now(), mode: releaseMode, phase: 0, ema: [0, 0, 0], fmax: 0 };
+  $('meterBar').style.width = '0%'; updateSideHint();
+  const sub = { auto: 'Back… and forward — it lets go by itself', hold: 'Lift your thumb to let go', tap: 'Tap again to let go', camera: 'Lift your finger off the camera to let go' }[releaseMode];
+  $('prompt').innerHTML = `<div class="big">Swing!</div><div class="small">${sub}</div>`;
+}
 function releaseGrip() {
   const g0 = grip; grip = null; updateSideHint();
   const now = performance.now(), rec = mBuf.filter(s => s.t >= g0.t - 50);
-  if (now - g0.t < 250 || rec.length < 8) { toast('Hold the screen, swing your arm back and forward, then let go'); refresh(); return; }
+  if (now - g0.t < 250 || rec.length < 8) { toast('Swing your arm back and forward to bowl'); refresh(); return; }
   const peak = Math.max(...rec.map(swingRate));
   if (peak < 110) { toast('Swing your arm back and forward, then let go'); refresh(); return; }
   const relSp = avg(rec.filter(s => now - s.t < 110).map(swingRate));
@@ -903,7 +1001,7 @@ function releaseGrip() {
   if (relSp < peak * 0.45) toast('Tip: let go near the bottom of your swing for full power');
   bowl({ x: aimX, v: clamp((4.5 + (relSp - 110) / 650 * 6) * swingSens, 4.5, 10.8), a: 0, s: clamp(sp, -1, 1) });
 }
-const endGrip = e => { if (grip && e.pointerId === grip.id) releaseGrip(); };
+const endGrip = e => { if (grip && grip.mode === 'hold' && e.pointerId === grip.id) releaseGrip(); };
 window.addEventListener('pointerup', endGrip); window.addEventListener('pointercancel', endGrip);
 function updateSideHint() { $('sideHint').style.display = swingUIOn() && !grip && sideways === false ? 'block' : 'none'; }
 // aim buttons (thumb is busy gripping, so no dragging in swing mode)
@@ -914,12 +1012,139 @@ for (const [id, dir] of [['aimL', -1], ['aimR', 1]]) {
   el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const step = () => { aimX = clamp(aimX + dir * 0.012, -0.42, 0.42); pushAim(); }; step(); aimStop(); aimTimer = setInterval(step, 30); });
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, aimStop));
 }
+$('bRotTip').onclick = () => { $('rotTip').style.display = 'none'; LS.set('bowl.rotTip', true); };
 $('bOptIn').onclick = () => { setPref('swing'); optinDismissed = false; enableMotion(false); };
 $('bOptOut').onclick = () => { setPref('swipe'); refresh(); };
 // swing settings in the menu
 $('swingSettings').style.display = motionCapable ? 'block' : 'none';
 $('sens').value = swingSens; $('sensVal').textContent = Math.round(swingSens * 100) + '%';
 $('sens').oninput = e => { swingSens = clamp(+e.target.value, 0.6, 1.6); LS.set('bowl.sens', swingSens); $('sensVal').textContent = Math.round(swingSens * 100) + '%'; };
+function renderRel() {
+  const cb = document.querySelector('#relRow [data-r="camera"]'); if (cb) cb.style.display = camCapable ? '' : 'none';
+  $('bCamSetup').style.display = releaseMode === 'camera' ? 'block' : 'none'; document.querySelectorAll('#relRow [data-r]').forEach(b => b.classList.toggle('on', b.dataset.r === releaseMode)); }
+$('relRow').onclick = e => {
+  const b = e.target.closest('[data-r]'); if (!b) return;
+  releaseMode = b.dataset.r; LS.set('bowl.release', releaseMode); grip = null; renderRel();
+  if (releaseMode === 'camera') { modal('mMenu', false); camStart().then(ok => { if (ok) openCamSetup(); }); } else camStop();
+  refresh();
+};
+$('bCamSetup').onclick = () => { modal('mMenu', false); camStart().then(ok => { if (ok) openCamSetup(); }); };
+
+// ================= camera button: finger over the rear camera = holding the ball =================
+const camCapable = motionCapable && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const cam = { stream: null, timer: null, on: false, covered: false, samples: [], deviceId: LS.get('bowl.camId', null), cal: null, starting: null };
+const camCv = document.createElement('canvas'); camCv.width = 24; camCv.height = 18;
+const camCtx = camCv.getContext('2d', { willReadFrequently: true });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const CAM_DEFAULT = { yc: 14, yu: 105, dc: 1.2, du: 6, rc: 0.47, ru: 0.36 };
+const calKey = () => 'bowl.camcal.' + (cam.deviceId || 'default');
+async function backLenses() {
+  const ds = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+  const back = ds.filter(d => /back|rear|environment/i.test(d.label));
+  return back.length ? back : ds.filter(d => !/front/i.test(d.label));
+}
+// prefer one real lens (the main 1x "Back Camera") over lens-switching combos (Dual/Triple), which can jump to an uncovered lens
+async function pickMainLens() {
+  try {
+    const back = await backLenses();
+    const exact = back.find(d => /^back camera$/i.test(d.label.trim()));
+    if (exact) return exact.deviceId;
+    const plain = back.find(d => d.label && !/ultra|tele|dual|triple|front/i.test(d.label));
+    return plain ? plain.deviceId : null;
+  } catch (e) { return null; }
+}
+function camStart() {
+  if (cam.on) return Promise.resolve(true);
+  if (cam.starting) return cam.starting;
+  cam.starting = (async () => {
+    try {
+      const v = { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 30 } };
+      const open = id => navigator.mediaDevices.getUserMedia({ audio: false, video: id ? { ...v, deviceId: { exact: id } } : { ...v, facingMode: { ideal: 'environment' } } });
+      let stream;
+      try { stream = await open(cam.deviceId); } catch (e) { if (!cam.deviceId) throw e; cam.deviceId = null; stream = await open(null); }
+      if (!cam.deviceId) {
+        const main = await pickMainLens();
+        const cur = stream.getVideoTracks()[0].getSettings().deviceId;
+        if (main && main !== cur) { stream.getTracks().forEach(t => t.stop()); stream = await open(main); cam.deviceId = main; }
+        else cam.deviceId = cur || null;
+        LS.set('bowl.camId', cam.deviceId);
+      }
+      cam.stream = stream;
+      const vid = $('camVideo'); vid.srcObject = stream; await vid.play().catch(() => {});
+      cam.cal = LS.get(calKey(), null) || { ...CAM_DEFAULT };
+      cam.samples = []; cam.covered = false; cam.on = true;
+      cam.timer = setInterval(camSample, 33);
+      refresh(); return true;
+    } catch (e) {
+      toast("Couldn't use the camera. Allow camera access for this site in Safari, or pick another release style in the menu.", 5000);
+      return false;
+    } finally { cam.starting = null; }
+  })();
+  return cam.starting;
+}
+function camStop() {
+  clearInterval(cam.timer); cam.timer = null;
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  cam.stream = null; cam.on = false; cam.covered = false;
+  $('camVideo').srcObject = null; $('camPreview').srcObject = null;
+  if (grip && grip.mode === 'camera') grip = null;
+}
+function camSample() {
+  const vid = $('camVideo'); if (!vid.videoWidth) return;
+  camCtx.drawImage(vid, 0, 0, 24, 18);
+  const d = camCtx.getImageData(0, 0, 24, 18).data, Y = new Float32Array(24 * 18);
+  let ys = 0, rs = 0, tot = 0, grad = 0;
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) { const y = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; Y[p] = y; ys += y; rs += d[i]; tot += d[i] + d[i + 1] + d[i + 2] + 1; }
+  for (let r = 0; r < 18; r++) for (let x = 1; x < 24; x++) grad += Math.abs(Y[r * 24 + x] - Y[r * 24 + x - 1]);
+  const s = { t: performance.now(), y: ys / 432, r: rs / tot, g: grad / (18 * 23) };
+  cam.samples.push(s); if (cam.samples.length > 90) cam.samples.shift();
+  // score: 0 = covered (dark, no detail, reddish from light through the finger), 1 = open
+  const c = cam.cal, cl = v => clamp(v, 0, 1);
+  const score = 0.5 * cl((s.y - c.yc) / Math.max(8, c.yu - c.yc)) + 0.3 * cl((s.g - c.dc) / Math.max(0.5, c.du - c.dc)) + 0.2 * (1 - cl((s.r - c.ru) / Math.max(0.02, c.rc - c.ru)));
+  const prev = cam.samples.slice(-8, -1);
+  let next = cam.covered;
+  if (cam.covered) {
+    // uncovered: clearly open, or a sudden jump in brightness (the iPhone brightens a covered lens over time, so watch for jumps too)
+    const minY = prev.length ? Math.min(...prev.map(x => x.y)) : s.y;
+    if (score > 0.6 || (s.y > minY * 1.8 && s.y - minY > 25)) next = false;
+  } else {
+    const avgY = prev.length ? avg(prev.map(x => x.y)) : s.y;
+    if (score < 0.3 || (s.y < avgY * 0.45 && avgY - s.y > 25)) next = true;
+  }
+  if (next !== cam.covered) { cam.covered = next; onCamChange(next); }
+}
+function onCamChange(covered) {
+  const L = $('camLight'); L.textContent = covered ? 'Covered' : 'Open'; L.classList.toggle('cov', covered);
+  if (releaseMode !== 'camera') return;
+  if (covered && !grip && canBowl() && usingSwing()) startGrip('camera');
+  else if (!covered && grip && grip.mode === 'camera') releaseGrip();
+}
+async function openCamSetup() {
+  $('camPreview').srcObject = cam.stream; $('camPreview').play().catch(() => {});
+  const sel = $('camSel'), lenses = await backLenses().catch(() => []);
+  sel.innerHTML = lenses.map((d, i) => `<option value="${esc(d.deviceId)}"${d.deviceId === cam.deviceId ? ' selected' : ''}>${esc(d.label || 'Camera ' + (i + 1))}</option>`).join('');
+  $('camStep').textContent = LS.get(calKey(), null) ? 'Cover and uncover the camera. The light should follow your finger. Recalibrate if it doesn’t.' : 'Tap Calibrate and follow the two steps.';
+  modal('mCam', true);
+}
+$('camSel').onchange = async e => {
+  cam.deviceId = e.target.value; LS.set('bowl.camId', cam.deviceId); camStop();
+  if (await camStart()) openCamSetup();
+};
+$('bCal').onclick = async () => {
+  const btn = $('bCal'), step = s => { $('camStep').textContent = s; };
+  btn.disabled = true;
+  const grab = async ms => { const t0 = performance.now(); await sleep(ms); return cam.samples.filter(s => s.t > t0 + ms * 0.3); };
+  step('1 of 2: Cover the camera with your finger and keep it there…'); await sleep(1300); const cov = await grab(1000);
+  step('2 of 2: Now lift your finger off…'); await sleep(1000); const opn = await grab(1000);
+  const m = (a, k) => avg(a.map(s => s[k]));
+  const c = { yc: m(cov, 'y'), yu: m(opn, 'y'), dc: m(cov, 'g'), du: m(opn, 'g'), rc: m(cov, 'r'), ru: m(opn, 'r') };
+  if (!cov.length || !opn.length || !((c.yu - c.yc) > 15 || (c.du - c.dc) > 1.5)) step("Couldn't tell covered from open. Try another lens above, make sure your finger covers it fully, or add more light.");
+  else { cam.cal = c; LS.set(calKey(), c); step('All set! Cover and uncover to test. The light should follow your finger.'); }
+  btn.disabled = false;
+};
+$('bCamDone').onclick = () => { modal('mCam', false); $('camPreview').srcObject = null; refresh(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) camStop(); });
+renderRel();
 $('flipHook').checked = hookFlip;
 $('flipHook').onchange = e => { hookFlip = e.target.checked; LS.set('bowl.flip', hookFlip); };
 
@@ -940,7 +1165,7 @@ function refresh() {
   else if (!cur) pr.innerHTML = '';
   else if (mine) {
     const who = mode === 'local' ? `${esc(nameOf(cur))}'s turn` : 'Your turn!';
-    const how = usingSwing() ? 'Screen facing left, volume buttons down. Thumb on the screen, swing, lift your thumb to bowl.<br>◀ ▶ to line up · twist your wrist as you let go to hook' : 'Drag sideways to line up · swipe up to bowl<br>Curve your swipe to hook the ball';
+    const how = usingSwing() ? ({ auto: 'Tap the screen, then swing back and forward.<br>The ball lets go at the bottom of your swing.', hold: 'Thumb on the screen, swing, lift your thumb to bowl.', tap: 'Tap to get ready, swing, tap again to let go.', camera: cam.on ? 'Cover the rear camera with your finger, swing,<br>lift your finger to let go.' : 'Tap the screen to turn the camera on.' }[releaseMode] + '<br>◀ ▶ to line up · twist your wrist at the bottom to hook') : 'Drag sideways to line up · swipe up to bowl<br>Curve your swipe to hook the ball';
     pr.innerHTML = `<div class="big">${who}</div><div class="small">${how}</div>`;
   } else if (mode === 'online' && !G.order.includes(myPid)) pr.innerHTML = `<div class="big">Watching</div><div class="small">This game started before you joined — you're in the next one.</div>`;
   else pr.innerHTML = `<div class="big">${esc(nameOf(cur))} is up</div><div class="small">Watch their throw live</div>`;
@@ -1163,7 +1388,7 @@ function startOnline() {
   persist(); push(); enterGame();
 }
 function leave() {
-  hideBanner(); anim = null;
+  hideBanner(); anim = null; camStop();
   if (mode === 'online') {
     if (R) { try { R.presence({ game: null, board: null, masks: null, thr: null }); } catch (e) {} R.leave().catch(() => {}); }
     R = null; roomCode = null;
@@ -1236,6 +1461,7 @@ async function initRooms() {
 }
 
 // ================= boot =================
+layout();
 if (hasGL) { buildScene(); idlePins(1023); placeBall(0, 0.35, 0); requestAnimationFrame(loop); }
 else toast('Could not load the 3D engine — check your connection and reload.', 8000);
 initRooms();
