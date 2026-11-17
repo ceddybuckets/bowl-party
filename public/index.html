@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Bowl Party</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+  :root { --ink:#1d2a44; --sky:#2f9bff; --sky2:#1a7be0; --soft:#eef5ff; --card:rgba(255,255,255,.94); }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; height:100%; overflow:hidden; background:#0d1633; font-family:Fredoka, system-ui, sans-serif; color:var(--ink); -webkit-user-select:none; user-select:none; overscroll-behavior:none; }
+  #gl { position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+  #trail { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; }
+  .screen { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); background:radial-gradient(120% 80% at 50% 0%, #4fb4ff 0%, #2a7fe0 45%, #173f9e 100%); z-index:20; overflow:auto; }
+  .screen.on { display:flex; }
+  .card { width:100%; max-width:380px; background:var(--card); border-radius:28px; padding:22px 20px; box-shadow:0 18px 50px rgba(5,20,60,.35); }
+  h1 { margin:0 0 4px; font-size:40px; font-weight:700; text-align:center; letter-spacing:.5px; color:#fff; text-shadow:0 3px 0 #1a5cc0, 0 8px 22px rgba(0,0,0,.25); }
+  .tag { text-align:center; color:#dff0ff; margin:0 0 18px; font-size:16px; }
+  h2 { margin:0 0 12px; font-size:22px; font-weight:600; }
+  label { display:block; font-size:14px; font-weight:500; color:#5a6a88; margin:0 0 6px 4px; }
+  input { width:100%; font:inherit; font-size:20px; padding:12px 16px; border-radius:16px; border:2px solid #d4e3f7; background:#f7fbff; color:var(--ink); outline:none; -webkit-user-select:text; user-select:text; }
+  input:focus { border-color:var(--sky); }
+  button { font:inherit; border:0; cursor:pointer; }
+  .btn { display:block; width:100%; font-size:20px; font-weight:600; padding:14px; border-radius:18px; margin-top:12px; color:#fff; background:linear-gradient(#45adff,#1f83ea); box-shadow:0 4px 0 #165fb3; transition:transform .06s; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #165fb3; }
+  .btn.alt { background:#fff; color:var(--sky2); box-shadow:0 4px 0 #c5d7ee; border:2px solid #d4e3f7; }
+  .btn.green { background:linear-gradient(#4cd47c,#22a957); box-shadow:0 4px 0 #17803f; }
+  .btn:disabled { opacity:.45; pointer-events:none; }
+  .row { display:flex; gap:10px; align-items:stretch; }
+  .row > * { flex:1; }
+  .note { font-size:14px; color:#62738f; margin:12px 4px 0; line-height:1.35; }
+  .err { color:#d33; }
+  .divider { text-align:center; color:#8a9ab5; font-size:14px; margin:16px 0 4px; }
+  .code { font-size:44px; font-weight:700; letter-spacing:8px; text-align:center; color:var(--sky2); margin:2px 0 4px; text-transform:uppercase; }
+  .plist { list-style:none; padding:0; margin:12px 0 0; }
+  .plist li { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:14px; background:var(--soft); margin-bottom:8px; font-size:18px; }
+  .dot { width:16px; height:16px; border-radius:50%; flex:none; box-shadow:inset 0 -2px 0 rgba(0,0,0,.2); }
+  .you { margin-left:auto; font-size:13px; color:#7d8fae; }
+  .x { margin-left:auto; background:none; color:#9aa8bf; font-size:22px; padding:0 4px; }
+
+  /* HUD */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:10; display:none; }
+  #hud.on { display:block; }
+  #topbar { position:absolute; top:0; left:0; right:0; padding:calc(env(safe-area-inset-top) + 8px) 10px 8px; display:flex; gap:8px; align-items:flex-start; }
+  #chips { flex:1; display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { pointer-events:auto; display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.88); border-radius:14px; padding:5px 10px 5px 7px; font-size:15px; font-weight:500; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .chip b { font-weight:700; }
+  .chip.cur { background:#fff; outline:3px solid #ffcc33; }
+  .chip.off { opacity:.5; }
+  .ibtn { pointer-events:auto; width:40px; height:40px; border-radius:14px; background:rgba(255,255,255,.88); font-size:20px; display:grid; place-items:center; box-shadow:0 2px 8px rgba(0,0,0,.2); color:var(--ink); }
+  #framebox { position:absolute; top:calc(env(safe-area-inset-top) + 58px); left:10px; color:#fff; font-size:15px; font-weight:500; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #bottom { position:absolute; left:0; right:0; bottom:0; padding:12px 14px calc(env(safe-area-inset-bottom) + 14px); display:flex; flex-direction:column; align-items:center; gap:10px; }
+  #prompt { background:rgba(255,255,255,.92); border-radius:20px; padding:10px 16px; text-align:center; box-shadow:0 4px 16px rgba(0,0,0,.25); max-width:420px; }
+  #prompt .big { font-size:22px; font-weight:600; }
+  #prompt .small { font-size:14px; color:#5a6a88; margin-top:2px; }
+  #prompt:empty { display:none; }
+  #modeRow { display:flex; gap:8px; pointer-events:auto; }
+  .seg { background:rgba(255,255,255,.75); border-radius:12px; padding:6px 12px; font-size:14px; font-weight:500; color:var(--ink); }
+  .seg.on { background:#fff; color:var(--sky2); outline:2px solid var(--sky); }
+  #holdBtn { pointer-events:auto; width:120px; height:120px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #6fc3ff, #1f83ea); color:#fff; font-size:22px; font-weight:700; box-shadow:0 6px 0 #165fb3, 0 10px 30px rgba(0,0,0,.35); display:none; touch-action:none; }
+  #holdBtn.held { transform:translateY(4px); box-shadow:0 2px 0 #165fb3; background:radial-gradient(circle at 40% 35%, #ffd76a, #f29a12); }
+  #meter { display:none; width:160px; height:12px; border-radius:6px; background:rgba(255,255,255,.4); overflow:hidden; }
+  #meterBar { height:100%; width:0; background:linear-gradient(90deg,#4cd47c,#ffd34d,#ff4d4d); transition:width .05s; }
+  #skipBtn { pointer-events:auto; display:none; }
+  #banner { position:fixed; left:0; right:0; top:34%; text-align:center; z-index:15; pointer-events:none; font-size:64px; font-weight:700; color:#fff; letter-spacing:1px; text-shadow:0 4px 0 #c0392b, 0 10px 30px rgba(0,0,0,.4); opacity:0; transform:scale(.6); transition:opacity .2s, transform .35s cubic-bezier(.2,1.6,.4,1); }
+  #banner.on { opacity:1; transform:scale(1); }
+  #banner.blue { text-shadow:0 4px 0 #1a5cc0, 0 10px 30px rgba(0,0,0,.4); }
+  #banner .sub { display:block; font-size:20px; font-weight:500; text-shadow:0 2px 6px rgba(0,0,0,.6); margin-top:4px; }
+  #toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 100px); transform:translateX(-50%); background:rgba(20,30,60,.9); color:#fff; padding:8px 14px; border-radius:12px; font-size:15px; z-index:30; opacity:0; transition:opacity .2s; pointer-events:none; max-width:90%; text-align:center; }
+  #toast.on { opacity:1; }
+
+  /* modals */
+  .modal { position:fixed; inset:0; z-index:40; background:rgba(8,16,40,.55); display:none; align-items:center; justify-content:center; padding:16px; }
+  .modal.on { display:flex; }
+  .modal .card { max-width:560px; max-height:86vh; overflow:auto; }
+  .sc { overflow-x:auto; }
+  table.score { border-collapse:collapse; font-size:14px; min-width:520px; }
+  table.score td, table.score th { border:1.5px solid #c9d8ee; text-align:center; padding:0; }
+  table.score th { background:#eaf3ff; font-weight:600; padding:3px 0; font-size:12px; color:#5a6a88; }
+  table.score td.name { text-align:left; padding:4px 8px; font-weight:600; white-space:nowrap; min-width:70px; }
+  .fr { display:flex; flex-direction:column; min-width:38px; }
+  .fr .m { display:flex; justify-content:flex-end; height:20px; }
+  .fr .m span { width:15px; border-left:1.5px solid #c9d8ee; border-bottom:1.5px solid #c9d8ee; font-size:13px; line-height:18px; }
+  .fr .t { height:20px; line-height:20px; font-weight:600; }
+  tr.cur td.name { background:#fff6d6; }
+  .tot { font-weight:700; font-size:17px; min-width:44px; }
+  .stand { font-size:20px; }
+  .qr { display:flex; justify-content:center; }
+  .qr svg { width:200px; height:200px; background:#fff; border-radius:14px; }
+  .qr:empty { display:none; }
+  .stand li { justify-content:space-between; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="trail"></canvas>
+
+<!-- Home -->
+<div class="screen on" id="sHome">
+  <div style="width:100%;max-width:380px">
+    <h1>🎳 Bowl Party</h1>
+    <p class="tag">Bowl with your friends, right from your phones</p>
+    <div class="card">
+      <label for="nameIn">Your name</label>
+      <input id="nameIn" maxlength="14" placeholder="e.g. Sam" autocomplete="off">
+      <button class="btn" id="bCreate" disabled>Start a room</button>
+      <div class="divider">or join a friend's room</div>
+      <div class="row">
+        <input id="codeIn" maxlength="4" placeholder="CODE" autocomplete="off" style="text-transform:uppercase;letter-spacing:4px;text-align:center">
+        <button class="btn" id="bJoin" style="margin-top:0" disabled>Join</button>
+      </div>
+      <p class="note" id="roomNote">Connecting to rooms…</p>
+      <button class="btn alt" id="bLocal">Pass &amp; play on this phone</button>
+    </div>
+  </div>
+</div>
+
+<!-- Online lobby -->
+<div class="screen" id="sLobby">
+  <div class="card">
+    <h2 style="text-align:center;margin-bottom:0">Room code</h2>
+    <div class="code" id="lobbyCode">----</div>
+    <div class="qr" id="qrLobby"></div>
+    <p class="note" style="text-align:center;margin-top:4px">Friends scan this with their phone camera — or open this page and type the code.</p>
+    <ul class="plist" id="lobbyList"></ul>
+    <p class="note" id="lobbyStatus"></p>
+    <button class="btn green" id="bStart">Start game</button>
+    <button class="btn alt" id="bLeave">Leave room</button>
+  </div>
+</div>
+
+<!-- Local setup -->
+<div class="screen" id="sLocal">
+  <div class="card">
+    <h2>Who's bowling?</h2>
+    <ul class="plist" id="localList"></ul>
+    <div class="row">
+      <input id="localName" maxlength="14" placeholder="Add a player" autocomplete="off">
+      <button class="btn" id="bAddLocal" style="margin-top:0;flex:0 0 72px">Add</button>
+    </div>
+    <button class="btn green" id="bStartLocal">Let's bowl</button>
+    <button class="btn alt" id="bResumeLocal" style="display:none">Resume last game</button>
+    <button class="btn alt" id="bBackLocal">Back</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="topbar">
+    <div id="chips"></div>
+    <button class="ibtn" id="bCard" title="Scorecard">📋</button>
+    <button class="ibtn" id="bMenu" title="Menu">☰</button>
+  </div>
+  <div id="framebox"></div>
+  <div id="bottom">
+    <button class="btn alt" id="skipBtn" style="width:auto;padding:8px 16px;font-size:16px;margin:0"></button>
+    <div id="meter"><div id="meterBar"></div></div>
+    <button id="holdBtn">HOLD<br><span style="font-size:13px;font-weight:500">swing &amp; let go</span></button>
+    <div id="prompt"></div>
+    <div id="modeRow"></div>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="toast"></div>
+
+<!-- Scorecard -->
+<div class="modal" id="mCard">
+  <div class="card">
+    <h2>Scorecard</h2>
+    <div class="sc" id="scoreTable"></div>
+    <button class="btn" id="bCloseCard">Close</button>
+  </div>
+</div>
+<!-- Menu -->
+<div class="modal" id="mMenu">
+  <div class="card" style="max-width:340px">
+    <h2 id="menuTitle">Menu</h2>
+    <p class="note" id="menuInfo" style="margin-top:0"></p>
+    <div class="qr" id="qrMenu"></div>
+    <button class="btn" id="bResume">Back to the lane</button>
+    <button class="btn alt" id="bQuit">Leave game</button>
+  </div>
+</div>
+<!-- Game over -->
+<div class="modal" id="mOver">
+  <div class="card" style="max-width:380px">
+    <h2 style="text-align:center">🏆 Final scores</h2>
+    <ul class="plist stand" id="standings"></ul>
+    <button class="btn green" id="bAgain">Play again</button>
+    <button class="btn alt" id="bOverCard">See scorecard</button>
+    <button class="btn alt" id="bOverQuit">Exit</button>
+  </div>
+</div>
+
+<script>
+// ===== Bowling physics: pure + deterministic (same inputs -> same result on every phone) =====
+const LANE_HALF = 0.533, HEAD_Z = 18.29, PIN_SP = 0.3048, ROW_D = 0.2639;
+const PIN_R = 0.061, BALL_R = 0.108, PIT_Z = 19.35, M_BALL = 7, M_PIN = 1.5;
+const PIN_HOME = [];
+for (let r = 0; r < 4; r++) for (let i = 0; i <= r; i++) PIN_HOME.push({ x: (i - r / 2) * PIN_SP, z: HEAD_Z + r * ROW_D });
+
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function smooth(a, b, x) { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
+function popcount(m) { let c = 0; for (let i = 0; i < 10; i++) if ((m >> i) & 1) c++; return c; }
+
+function collide(a, ma, b, mb, rr, e) {
+  const dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz;
+  if (d2 >= rr * rr || d2 === 0) return 0;
+  const d = Math.sqrt(d2), nx = dx / d, nz = dz / d, pen = rr - d, tot = ma + mb;
+  a.x -= nx * pen * mb / tot; a.z -= nz * pen * mb / tot;
+  b.x += nx * pen * ma / tot; b.z += nz * pen * ma / tot;
+  const rv = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
+  if (rv > 0) return 0;
+  const j = -(1 + e) * rv / (1 / ma + 1 / mb);
+  a.vx -= j * nx / ma; a.vz -= j * nz / ma;
+  b.vx += j * nx / mb; b.vz += j * nz / mb;
+  return -rv;
+}
+function jitter(p, rnd, amt) {
+  const a = (rnd() - 0.5) * 2 * amt, c = Math.cos(a), s = Math.sin(a), k = 0.88 + 0.24 * rnd();
+  const vx = p.vx, vz = p.vz; p.vx = (vx * c - vz * s) * k; p.vz = (vx * s + vz * c) * k;
+}
+
+// prm: {x: start position (m, + = right), v: speed m/s, a: launch angle rad (+ = right), s: hook -1..1 (+ = hooks right)}
+// mask: 10-bit set of standing pins (bit i = pin i+1)
+function simulate(prm, mask, seed) {
+  const rnd = mulberry32(seed >>> 0);
+  const dt = 1 / 240, REC = 4;
+  const b = { x: prm.x, z: 0.35, vx: prm.v * Math.sin(prm.a), vz: prm.v * Math.cos(prm.a), gut: 0, gone: false };
+  const pins = PIN_HOME.map((h, i) => ({ x: h.x, z: h.z, hx: h.x, hz: h.z, vx: 0, vz: 0, present: !!((mask >> i) & 1), down: false, out: false, dir: 0, td: -1, to: -1 }));
+  const frames = [], hits = [];
+  let t = 0, step = 0, settle = 0, gutter = false;
+  while (t < 9) {
+    if (!b.gone) {
+      if (!b.gut) b.vx += prm.s * 1.5 * smooth(7, 15.5, b.z) * dt;
+      b.x += b.vx * dt; b.z += b.vz * dt; b.vz = Math.max(0.6, b.vz - 0.12 * dt);
+      if (!b.gut && Math.abs(b.x) > LANE_HALF - 0.01 && b.z < HEAD_Z + 0.9) { b.gut = Math.sign(b.x); b.vx = 0; if (b.z < HEAD_Z - 0.2) gutter = true; }
+      if (b.gut) b.x += (b.gut * (LANE_HALF + 0.1) - b.x) * Math.min(1, dt * 14);
+      if (b.z > PIT_Z + 0.6) b.gone = true;
+    }
+    if (!b.gone && !b.gut && b.z < PIT_Z) for (const p of pins) {
+      if (!p.present || p.out) continue;
+      const v = collide(b, M_BALL, p, M_PIN, BALL_R + PIN_R, 0.62);
+      if (v) { jitter(p, rnd, 0.14); hits.push([t, v]); }
+    }
+    for (const p of pins) {
+      if (!p.present || p.out) continue;
+      p.x += p.vx * dt; p.z += p.vz * dt;
+      const sp = Math.hypot(p.vx, p.vz);
+      if (sp > 0) { const k = Math.max(0, sp - 2.4 * dt) / sp; p.vx *= k; p.vz *= k; }
+      if (!p.down && (sp > 0.35 || Math.hypot(p.x - p.hx, p.z - p.hz) > 0.035)) { p.down = true; p.dir = Math.atan2(p.vx, p.vz); p.td = t; }
+      if (Math.abs(p.x) > LANE_HALF + 0.04 || p.z > PIT_Z) {
+        p.out = true; p.to = t;
+        if (!p.down) { p.down = true; p.dir = Math.atan2(p.vx, p.vz); p.td = t; }
+      }
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = pins[i]; if (!a.present || a.out) continue;
+      for (let j = i + 1; j < 10; j++) {
+        const c = pins[j]; if (!c.present || c.out) continue;
+        const v = collide(a, M_PIN, c, M_PIN, (a.down ? 0.09 : PIN_R) + (c.down ? 0.09 : PIN_R), 0.7);
+        if (v) { jitter(a, rnd, 0.25); jitter(c, rnd, 0.25); if (v > 0.5) hits.push([t, v * 0.5]); }
+      }
+    }
+    if (step % REC === 0) {
+      const f = [b.x, b.z, b.gut ? 1 : 0];
+      for (const p of pins) f.push(p.x, p.z);
+      frames.push(f);
+    }
+    const moving = pins.some(p => p.present && !p.out && (p.vx * p.vx + p.vz * p.vz) > 0.0009);
+    if (b.gone && !moving) { settle += dt; if (settle > 0.6) break; } else settle = 0;
+    t += dt; step++;
+  }
+  let after = 0;
+  pins.forEach((p, i) => { if (p.present && !p.down) after |= 1 << i; });
+  return {
+    frames, fps: 240 / REC, hits, gutter, after, before: mask,
+    fell: popcount(mask) - popcount(after),
+    meta: pins.map(p => ({ present: p.present, down: p.down, dir: p.dir, td: p.td, to: p.to })),
+  };
+}
+if (typeof module !== 'undefined') module.exports = { simulate, popcount, PIN_HOME };
+
+</script>
+<script>
+(() => {
+'use strict';
+// ================= utils =================
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+const ALNUM = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const rid = (n, abc = ALNUM) => Array.from({ length: n }, () => abc[Math.floor(Math.random() * abc.length)]).join('');
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+const COLORS = ['#2f80ff', '#ff4d4d', '#22c55e', '#ffb020', '#a855f7', '#ff5fb0', '#14b8a6', '#ff7a1a'];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const cleanName = s => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁯]/g, '').trim().slice(0, 14) : '') || 'Player';
+let toastT;
+function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+
+let myPid = LS.get('bowl.pid', null);
+if (typeof myPid !== 'string' || !/^p[a-z0-9]{9}$/.test(myPid)) { myPid = 'p' + rid(9); LS.set('bowl.pid', myPid); }
+let myName = LS.get('bowl.name', '');
+
+// ================= scoring =================
+function frameState(r) {
+  let i = 0;
+  for (let f = 0; f < 9; f++) {
+    if (i >= r.length) return { f, b: 0, done: false };
+    if (r[i] === 10) { i += 1; continue; }
+    if (i + 1 >= r.length) return { f, b: 1, done: false };
+    i += 2;
+  }
+  const rem = r.length - i;
+  if (rem < 2) return { f: 9, b: rem, done: false };
+  if (rem === 2) return { f: 9, b: 2, done: !(r[i] === 10 || r[i] + r[i + 1] === 10) };
+  return { f: 9, b: 3, done: true };
+}
+function freshNext(r) {
+  const st = frameState(r);
+  if (st.done || st.b === 0) return true;
+  if (st.f < 9) return false;
+  const i = r.length - st.b;
+  if (st.b === 1) return r[i] === 10;
+  return r[i] === 10 ? r[i + 1] === 10 : r[i] + r[i + 1] === 10;
+}
+function cumulative(r) {
+  const out = []; let i = 0, tot = 0, ok = true;
+  for (let f = 0; f < 10; f++) {
+    if (!ok || i >= r.length) { out.push(null); ok = false; continue; }
+    if (r[i] === 10) {
+      if (r[i + 1] === undefined || r[i + 2] === undefined) { out.push(null); ok = false; continue; }
+      tot += 10 + r[i + 1] + r[i + 2]; i += 1;
+    } else {
+      if (r[i + 1] === undefined) { out.push(null); ok = false; continue; }
+      if (r[i] + r[i + 1] === 10) {
+        if (r[i + 2] === undefined) { out.push(null); ok = false; continue; }
+        tot += 10 + r[i + 2];
+      } else tot += r[i] + r[i + 1];
+      i += 2;
+    }
+    out.push(tot);
+  }
+  return out;
+}
+function marks(r) {
+  const d = v => v === 0 ? '-' : String(v);
+  const out = []; let i = 0;
+  for (let f = 0; f < 9; f++) {
+    if (i >= r.length) { out.push(['', '']); continue; }
+    if (r[i] === 10) { out.push(['', 'X']); i++; continue; }
+    const a = r[i], b = r[i + 1];
+    out.push([d(a), b === undefined ? '' : (a + b === 10 ? '/' : d(b))]); i += 2;
+  }
+  const [a, b, c] = [r[i], r[i + 1], r[i + 2]], m = ['', '', ''];
+  if (a !== undefined) m[0] = a === 10 ? 'X' : d(a);
+  if (b !== undefined) m[1] = a === 10 ? (b === 10 ? 'X' : d(b)) : (a + b === 10 ? '/' : d(b));
+  if (c !== undefined) m[2] = (a === 10 && b === 10) ? (c === 10 ? 'X' : d(c)) : a === 10 ? (b + c === 10 ? '/' : d(c)) : (c === 10 ? 'X' : d(c));
+  out.push(m);
+  return out;
+}
+const totalOf = r => { const c = cumulative(r).filter(v => v !== null); return c.length ? c[c.length - 1] : 0; };
+const ADJ = [[1, 2], [0, 2, 3, 4], [0, 1, 4, 5], [1, 4, 6, 7], [1, 2, 3, 5, 7, 8], [2, 4, 8, 9], [3, 7], [3, 4, 6, 8], [4, 5, 7, 9], [5, 8]];
+function isSplit(mask) {
+  if (mask & 1) return false;
+  const standing = []; for (let i = 0; i < 10; i++) if ((mask >> i) & 1) standing.push(i);
+  if (standing.length < 2) return false;
+  const seen = new Set([standing[0]]), q = [standing[0]];
+  while (q.length) { const p = q.pop(); for (const n of ADJ[p]) if (((mask >> n) & 1) && !seen.has(n)) { seen.add(n); q.push(n); } }
+  return seen.size < standing.length;
+}
+
+// ================= 3D scene =================
+const canvas = $('gl');
+const hasGL = !!window.THREE;
+let sbCanvas, sbTex, sbKey = '';
+let renderer, scene, camera, ballMesh, ballShadow, pinMeshes = [], pinShadows = [], aimDots;
+const ballMats = {};
+const camPos = hasGL ? new THREE.Vector3(0, 1.4, -3.2) : null, camLook = hasGL ? new THREE.Vector3(0, 0, 13) : null;
+const Z0 = -0.2, Z1 = PIT_Z, LANE_PITCH = 1.96;
+const X3 = x => -x; // sim x (+ = bowler's right) -> world X
+
+function laneTexture() {
+  const W = 256, H = 2048, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), boards = 39, bw = W / boards;
+  for (let i = 0; i < boards; i++) { g.fillStyle = `hsl(${30 + (i * 7) % 6}, ${52 + (i * 13) % 8}%, ${63 + ((i * 37) % 9) - 4}%)`; g.fillRect(i * bw, 0, bw + 1, H); }
+  for (let k = 0; k < 1400; k++) { g.fillStyle = `rgba(120,70,30,${Math.random() * 0.07})`; g.fillRect(Math.random() * W, Math.random() * H, 1, 20 + Math.random() * 140); }
+  g.fillStyle = 'rgba(90,50,20,.22)'; for (let i = 1; i < boards; i++) g.fillRect(i * bw, 0, 1, H);
+  const zpx = z => (z - Z0) / (Z1 - Z0) * H;
+  // pin deck slightly lighter
+  g.fillStyle = 'rgba(255,240,215,.18)'; g.fillRect(0, zpx(HEAD_Z - 0.45), W, H);
+  g.fillStyle = '#2b1a10'; g.fillRect(0, zpx(0) - 2, W, 4); // foul line
+  g.fillStyle = '#4a2412';
+  for (let k = 1; k <= 7; k++) { const x = W * (k * 5) / 39 - bw / 2 + bw * 0.5 * 0; g.beginPath(); g.arc(W - x, zpx(2.1), 3, 0, 7); g.fill(); }
+  for (let k = 1; k <= 7; k++) {
+    const x = W - (k * 5 - 0.5) * bw, top = zpx(4.25 + Math.abs(k - 4) * 0.12);
+    g.beginPath(); g.moveTo(x - bw * 0.9, top); g.lineTo(x + bw * 0.9, top); g.lineTo(x, top + 34); g.closePath(); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; return t;
+}
+function maskingTexture() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 160; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 1024, 0); gr.addColorStop(0, '#3b1d8f'); gr.addColorStop(.5, '#1b5fd6'); gr.addColorStop(1, '#3b1d8f');
+  g.fillStyle = gr; g.fillRect(0, 0, 1024, 160);
+  for (let i = 0; i < 90; i++) { g.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.6})`; g.beginPath(); g.arc(Math.random() * 1024, Math.random() * 160, Math.random() * 2 + 0.5, 0, 7); g.fill(); }
+  g.font = '700 46px Fredoka, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#ffd34d'; g.fillText('★  BOWL PARTY  ★', 512, 82);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+}
+function blobTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 2, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+}
+function pinGeometry() {
+  const prof = [[0, .0255], [.02, .035], [.05, .048], [.085, .058], [.114, .0605], [.15, .057], [.19, .045], [.225, .031], [.254, .0225], [.28, .024], [.305, .029], [.33, .032], [.352, .0295], [.368, .022], [.377, .012], [.381, 0]];
+  const rAt = y => { for (let i = 1; i < prof.length; i++) if (y <= prof[i][0]) { const [y0, r0] = prof[i - 1], [y1, r1] = prof[i]; return r0 + (r1 - r0) * (y - y0) / (y1 - y0); } return 0; };
+  const ys = new Set(); for (let y = 0; y <= 0.381; y += 0.006) ys.add(+y.toFixed(4));
+  [0.26, 0.2605, 0.27, 0.2705, 0.281, 0.2815, 0.291, 0.2915, 0.381].forEach(v => ys.add(v));
+  const pts = [new THREE.Vector2(0, 0)];
+  [...ys].sort((a, b) => a - b).forEach(y => pts.push(new THREE.Vector2(Math.max(0.0005, rAt(y)), y)));
+  const geo = new THREE.LatheGeometry(pts, 22);
+  const pos = geo.attributes.position, cols = [];
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i), red = (y >= 0.2604 && y <= 0.2701) || (y >= 0.2814 && y <= 0.2911);
+    if (red) cols.push(0.85, 0.08, 0.1); else cols.push(1, 1, 1);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  return geo;
+}
+function ballMaterial(color) {
+  if (ballMats[color]) return ballMats[color];
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = color; g.fillRect(0, 0, 512, 256);
+  for (let i = 0; i < 70; i++) {
+    g.fillStyle = i % 3 ? `rgba(255,255,255,${0.04 + Math.random() * 0.09})` : `rgba(0,0,0,${0.05 + Math.random() * 0.08})`;
+    g.beginPath(); g.ellipse(Math.random() * 512, Math.random() * 256, 10 + Math.random() * 60, 4 + Math.random() * 16, Math.random() * 3, 0, 7); g.fill();
+  }
+  [[118, 112, 11], [150, 112, 11], [134, 152, 13]].forEach(([x, y, r]) => {
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(x, y, r + 2.5, 0, 7); g.fill();
+    g.fillStyle = '#0d0d12'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  });
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  return (ballMats[color] = new THREE.MeshPhongMaterial({ map: t, shininess: 120, specular: 0x999999 }));
+}
+function buildScene() {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0b1430);
+  scene.fog = new THREE.Fog(0x0b1430, 24, 42);
+  camera = new THREE.PerspectiveCamera(46, 1, 0.05, 80);
+  scene.add(new THREE.HemisphereLight(0xe6eeff, 0x3a2a1a, 0.9));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.5); sun.position.set(-2, 8, -4); scene.add(sun);
+  const deck = new THREE.PointLight(0xfff0d8, 1.3, 10, 2); deck.position.set(0, 2.4, 17.4); scene.add(deck);
+  const laneTex = laneTexture();
+  const laneMat = new THREE.MeshPhongMaterial({ map: laneTex, shininess: 70, specular: 0x555555 });
+  const gutMat = new THREE.MeshPhongMaterial({ color: 0x30384a, shininess: 60, specular: 0x777777 });
+  const capMat = new THREE.MeshPhongMaterial({ color: 0x1c2340, shininess: 30 });
+  const wallMat = new THREE.MeshPhongMaterial({ color: 0x232a45 });
+  const L = Z1 - Z0, midZ = (Z0 + Z1) / 2;
+  const pinGeo = pinGeometry();
+  const pinMat = new THREE.MeshPhongMaterial({ vertexColors: true, shininess: 90, specular: 0x666666 });
+  const blob = blobTexture();
+  const blobMat = new THREE.MeshBasicMaterial({ map: blob, transparent: true, depthWrite: false });
+  for (let li = -2; li <= 2; li++) {
+    const ox = li * LANE_PITCH;
+    const lane = new THREE.Mesh(new THREE.PlaneGeometry(LANE_HALF * 2, L), laneMat); lane.rotation.x = -Math.PI / 2; lane.position.set(ox, 0, midZ); scene.add(lane);
+    for (const s of [-1, 1]) {
+      const gt = new THREE.Mesh(new THREE.PlaneGeometry(0.21, L + 0.6), gutMat); gt.rotation.x = -Math.PI / 2; gt.position.set(ox + s * (LANE_HALF + 0.105), -0.045, midZ + 0.3); scene.add(gt);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, HEAD_Z - 0.6 - Z0), capMat); cap.position.set(ox + s * (LANE_HALF + 0.21 + 0.17), 0.0, (Z0 + HEAD_Z - 0.6) / 2); if (s === 1 || li === -2) scene.add(cap); else if (li !== -2) scene.add(cap);
+      const kick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 2.2), wallMat); kick.position.set(ox + s * (LANE_HALF + 0.25), 0.25, HEAD_Z + 0.25); scene.add(kick);
+    }
+    if (li !== 0) {
+      PIN_HOME.forEach(h => { const m = new THREE.Mesh(pinGeo, pinMat); m.position.set(ox + X3(h.x), 0, h.z); scene.add(m); });
+    }
+  }
+  const appr = new THREE.Mesh(new THREE.PlaneGeometry(LANE_PITCH * 5 + 2, 8), new THREE.MeshPhongMaterial({ color: 0xd8b27f, shininess: 40, specular: 0x333333 }));
+  appr.rotation.x = -Math.PI / 2; appr.position.set(0, -0.002, Z0 - 4); scene.add(appr);
+  const pit = new THREE.Mesh(new THREE.PlaneGeometry(14, 3), new THREE.MeshBasicMaterial({ color: 0x050608 })); pit.rotation.x = -Math.PI / 2; pit.position.set(0, -0.3, Z1 + 1.4); scene.add(pit);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(14, 1.0), new THREE.MeshBasicMaterial({ color: 0x050608 })); back.position.set(0, 0.2, Z1 + 0.9); back.rotation.y = Math.PI; scene.add(back);
+  const mask = new THREE.Mesh(new THREE.PlaneGeometry(LANE_PITCH * 5, 1.25), new THREE.MeshBasicMaterial({ map: maskingTexture(), fog: false }));
+  mask.position.set(0, 1.25, Z1 + 0.2); mask.rotation.y = Math.PI; scene.add(mask);
+  // overhead scoreboard above the main lane
+  sbCanvas = document.createElement('canvas'); sbCanvas.width = 1024; sbCanvas.height = 512;
+  sbTex = new THREE.CanvasTexture(sbCanvas); sbTex.encoding = THREE.sRGBEncoding; sbTex.anisotropy = 4;
+  const sbFrame = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.88), new THREE.MeshBasicMaterial({ color: 0x0a0f22, fog: false }));
+  sbFrame.position.set(0, 1.47, Z1 - 0.06); sbFrame.rotation.y = Math.PI; scene.add(sbFrame);
+  const sb = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.8), new THREE.MeshBasicMaterial({ map: sbTex, fog: false }));
+  sb.position.set(0, 1.47, Z1 - 0.07); sb.rotation.y = Math.PI; scene.add(sb);
+  drawBoard();
+  // main-lane pins
+  for (let i = 0; i < 10; i++) {
+    const m = new THREE.Mesh(pinGeo, pinMat); scene.add(m); pinMeshes.push(m);
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), blobMat); sh.rotation.x = -Math.PI / 2; scene.add(sh); pinShadows.push(sh);
+  }
+  ballMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_R, 36, 24), ballMaterial(COLORS[0])); scene.add(ballMesh);
+  ballShadow = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), blobMat); ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
+  // aim guide
+  aimDots = new THREE.Group();
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
+  for (let i = 0; i < 9; i++) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.022, 12), dotMat); d.rotation.x = -Math.PI / 2; d.position.set(0, 0.003, 1.1 + i * 0.55); aimDots.add(d); }
+  scene.add(aimDots);
+  resize();
+}
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (renderer) { renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.8 ? 46 : 34; camera.updateProjectionMatrix(); }
+  const tr = $('trail'); tr.width = w * dpr; tr.height = h * dpr;
+}
+window.addEventListener('resize', resize);
+
+// ---- overhead scoreboard (drawn onto the screen above the pins) ----
+function drawBoard() {
+  if (!sbCanvas) return;
+  const cur = G ? curPid() : null;
+  const key = G ? JSON.stringify([G.gid, G.order, board, cur, G.names]) : 'none';
+  if (key === sbKey) return; sbKey = key;
+  const g = sbCanvas.getContext('2d'), W = 1024, H = 512;
+  const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#13245a'); bg.addColorStop(1, '#0b1638');
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  if (!G) {
+    g.fillStyle = '#ffd34d'; g.font = '700 64px Fredoka, sans-serif'; g.fillText('BOWL PARTY', W / 2, H / 2 - 20);
+    g.fillStyle = '#9fc4ff'; g.font = '500 34px Fredoka, sans-serif'; g.fillText('Grab a ball!', W / 2, H / 2 + 44);
+    sbTex.needsUpdate = true; return;
+  }
+  const n = G.order.length, top = 52, rowH = Math.min(92, (H - top - 10) / n), nameW = 200, totW = 104, fw = (W - 16 - nameW - totW) / 10, x0 = 8;
+  g.fillStyle = '#9fc4ff'; g.font = '600 26px Fredoka, sans-serif';
+  for (let f = 0; f < 10; f++) g.fillText(String(f + 1), x0 + nameW + fw * (f + 0.5), top / 2 + 2);
+  g.fillText('TOTAL', x0 + nameW + 10 * fw + totW / 2, top / 2 + 2);
+  const curF = cur ? frameState(board[cur] || []).f : -1;
+  G.order.forEach((pid, i) => {
+    const y = top + i * rowH, r = board[pid] || [], mk = marks(r), cu = cumulative(r), isCur = pid === cur;
+    g.fillStyle = isCur ? 'rgba(255,211,77,.22)' : (i % 2 ? 'rgba(255,255,255,.04)' : 'rgba(255,255,255,.08)');
+    g.fillRect(x0, y + 2, W - 16, rowH - 4);
+    g.fillStyle = colorOf(pid); g.beginPath(); g.arc(x0 + 22, y + rowH / 2, Math.min(13, rowH / 4), 0, 7); g.fill();
+    g.textAlign = 'left'; g.fillStyle = isCur ? '#ffd34d' : '#ffffff';
+    g.font = `600 ${Math.round(Math.min(34, rowH * 0.42))}px Fredoka, sans-serif`;
+    let nm = nameOf(pid); while (g.measureText(nm).width > nameW - 48 && nm.length > 2) nm = nm.slice(0, -1);
+    g.fillText(nm, x0 + 42, y + rowH / 2);
+    g.textAlign = 'center';
+    for (let f = 0; f < 10; f++) {
+      const fx = x0 + nameW + f * fw;
+      g.strokeStyle = 'rgba(159,196,255,.35)'; g.lineWidth = 2; g.strokeRect(fx, y + 2, fw, rowH - 4);
+      if (isCur && f === curF) { g.strokeStyle = '#ffd34d'; g.lineWidth = 3; g.strokeRect(fx + 1.5, y + 3.5, fw - 3, rowH - 7); }
+      const ms = mk[f].filter((m, j) => f === 9 || j > 0 || m !== '' || true);
+      const cells = f === 9 ? 3 : 2, cw = fw / (cells + 0.3);
+      g.font = `600 ${Math.round(Math.min(26, rowH * 0.3))}px Fredoka, sans-serif`;
+      for (let j = 0; j < cells; j++) {
+        const m = mk[f][j] || ''; if (!m) continue;
+        g.fillStyle = m === 'X' ? '#ff6b6b' : m === '/' ? '#5ed1ff' : '#dfe9ff';
+        g.fillText(m, fx + fw - cw * (cells - j - 0.5) - 4, y + rowH * 0.3);
+      }
+      if (cu[f] !== null) { g.fillStyle = '#ffffff'; g.font = `700 ${Math.round(Math.min(30, rowH * 0.36))}px Fredoka, sans-serif`; g.fillText(String(cu[f]), fx + fw / 2, y + rowH * 0.7); }
+    }
+    g.fillStyle = isCur ? '#ffd34d' : '#ffffff'; g.font = `700 ${Math.round(Math.min(44, rowH * 0.5))}px Fredoka, sans-serif`;
+    g.fillText(String(totalOf(r)), x0 + nameW + 10 * fw + totW / 2, y + rowH / 2);
+  });
+  sbTex.needsUpdate = true;
+}
+
+// ---- posing ----
+const ballQ = hasGL ? new THREE.Quaternion() : null;
+let lastBall = { x: 0, z: 0.35 };
+function placeBall(x, z, gut) {
+  const dx = x - lastBall.x, dz = z - lastBall.z, d = Math.hypot(dx, dz);
+  if (d > 1e-5 && d < 1) {
+    const ax = new THREE.Vector3(dz, 0, -X3(dx)).normalize();
+    ballQ.premultiply(new THREE.Quaternion().setFromAxisAngle(ax, d / BALL_R));
+  }
+  lastBall = { x, z };
+  let y = BALL_R - (gut ? 0.07 : 0);
+  if (z > PIT_Z) y -= (z - PIT_Z) * 0.9;
+  ballMesh.position.set(X3(x), y, z); ballMesh.quaternion.copy(ballQ);
+  ballMesh.visible = z < PIT_Z + 0.55;
+  ballShadow.position.set(X3(x), (gut ? -0.04 : 0.002), z + 0.02); ballShadow.visible = ballMesh.visible && z < PIT_Z;
+}
+const UP = hasGL ? new THREE.Vector3(0, 1, 0) : null;
+function placePin(i, x, z, tilt, dir, drop, visible) {
+  const m = pinMeshes[i], s = pinShadows[i];
+  m.visible = visible && drop < 0.45; s.visible = m.visible && drop === 0;
+  if (!m.visible) return;
+  const dX = -Math.sin(dir), dZ = Math.cos(dir);
+  m.quaternion.setFromAxisAngle(new THREE.Vector3(dZ, 0, -dX).normalize(), tilt);
+  m.position.set(X3(x), 0.04 * Math.sin(tilt) - drop, z);
+  s.position.set(X3(x) + dX * 0.17 * Math.sin(tilt), 0.003, z + dZ * 0.17 * Math.sin(tilt));
+  s.scale.set(1 + Math.sin(tilt), 1 + Math.sin(tilt) * 1.2, 1);
+}
+function idlePins(mask) { for (let i = 0; i < 10; i++) placePin(i, PIN_HOME[i].x, PIN_HOME[i].z, 0, 0, 0, !!((mask >> i) & 1)); }
+function poseFrame(res, idx, t) {
+  const f = res.frames[idx];
+  placeBall(f[0], f[1], f[2]);
+  for (let i = 0; i < 10; i++) {
+    const m = res.meta[i];
+    if (!m.present) { placePin(i, 0, 0, 0, 0, 0, false); continue; }
+    const tilt = m.td >= 0 && t >= m.td ? clamp((t - m.td) / 0.3, 0, 1) * Math.PI / 2 : 0;
+    const drop = m.to >= 0 && t >= m.to ? (t - m.to) * 1.8 : 0;
+    placePin(i, f[3 + 2 * i], f[4 + 2 * i], tilt, m.dir, drop, true);
+  }
+}
+
+// ================= audio =================
+let AC = null, noise = null;
+function audio() {
+  try {
+    if (!AC) {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      noise = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+      const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (AC.state === 'suspended') AC.resume();
+  } catch (e) { AC = null; }
+  return AC;
+}
+function rollSound(dur) {
+  if (!AC) return;
+  try {
+    const s = AC.createBufferSource(); s.buffer = noise; s.loop = true;
+    const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 220;
+    const g = AC.createGain(), t = AC.currentTime;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.5, t + 0.25); g.gain.setValueAtTime(0.5, t + dur); g.gain.linearRampToValueAtTime(0, t + dur + 0.3);
+    s.connect(f); f.connect(g); g.connect(AC.destination); s.start(t); s.stop(t + dur + 0.4);
+  } catch (e) {}
+}
+function crash(k) {
+  if (!AC) return;
+  try {
+    const t = AC.currentTime, s = AC.createBufferSource(); s.buffer = noise;
+    const f = AC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1600 + Math.random() * 1200; f.Q.value = 0.8;
+    const g = AC.createGain(); g.gain.setValueAtTime(0.9 * k, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.25 + 0.35 * k);
+    s.connect(f); f.connect(g); g.connect(AC.destination); s.start(t); s.stop(t + 0.7);
+    for (let i = 0; i < Math.round(2 + k * 5); i++) {
+      const o = AC.createOscillator(), og = AC.createGain(), tt = t + Math.random() * 0.25 * k;
+      o.type = 'triangle'; o.frequency.value = 700 + Math.random() * 900;
+      og.gain.setValueAtTime(0.25 * k, tt); og.gain.exponentialRampToValueAtTime(0.001, tt + 0.08);
+      o.connect(og); og.connect(AC.destination); o.start(tt); o.stop(tt + 0.1);
+    }
+  } catch (e) {}
+}
+
+// ================= game state =================
+let mode = null;          // 'online' | 'local'
+let G = null, board = {}, masks = {};
+let RNS = null, R = null, roomCode = null, joinedAt = 0, myThr = null;
+let seenThr = new Set(), lobbyPeers = [], remoteAim = {}, goneSince = {};
+let anim = null, aimX = 0, inputMode = 'swipe', overShownFor = null;
+const colorOf = pid => COLORS[Math.max(0, G ? G.order.indexOf(pid) : 0) % COLORS.length];
+const nameOf = pid => (G && G.names[pid]) || 'Player';
+
+function curPid() {
+  if (!G) return null;
+  let best = null, bf = 99, bb = -1;
+  for (const pid of G.order) {
+    const st = frameState(board[pid] || []);
+    if (st.done) continue;
+    if (st.f < bf || (st.f === bf && st.b > 0 && bb === 0)) { best = pid; bf = st.f; bb = st.b; }
+  }
+  return best;
+}
+const isMyTurn = () => { const c = curPid(); return !!c && (mode === 'local' || c === myPid); };
+function currentMask(pid) {
+  const r = board[pid] || [];
+  if (freshNext(r)) return 1023;
+  const m = masks[pid];
+  if (m && m.n === r.length) return m.m & 1023;
+  let left = 10 - r[r.length - 1], mk = 0;
+  for (let i = 9; i >= 0 && left > 0; i--, left--) mk |= 1 << i;
+  return mk;
+}
+function persist() {
+  if (!G) return;
+  if (mode === 'local') LS.set('bowl.local', { G, board, masks });
+  else if (mode === 'online' && roomCode) LS.set('bowl.room.' + roomCode, { G, board, masks, at: Date.now() });
+}
+
+// ---- bowling a ball ----
+function bowl(prm) {
+  const pid = curPid(); if (!pid || anim || !isMyTurn()) return;
+  const rolls = board[pid] || [], mask = currentMask(pid), idx = rolls.length;
+  prm = { x: +prm.x.toFixed(4), v: +prm.v.toFixed(3), a: +prm.a.toFixed(5), s: +prm.s.toFixed(3) };
+  const k = G.gid + ':' + pid + ':' + idx;
+  const res = simulate(prm, mask, hashStr(G.gid + '|' + pid + '|' + idx));
+  seenThr.add(k);
+  if (mode === 'online') { myThr = { k, p: prm, m: mask }; push(); }
+  startAnim(res, pid, prm, () => {
+    const r = (board[pid] || []).slice(); if (r.length !== idx) return;
+    r.push(res.fell); board[pid] = r;
+    masks[pid] = { n: r.length, m: freshNext(r) ? 1023 : res.after };
+    persist(); push();
+  });
+}
+function maybeReplay(thr) {
+  if (!thr || !G || typeof thr.k !== 'string' || seenThr.has(thr.k)) return;
+  const parts = thr.k.split(':'); if (parts.length !== 3) return;
+  const [gid, pid, idxS] = parts, idx = +idxS;
+  if (gid !== G.gid || !G.order.includes(pid) || pid === myPid) return;
+  seenThr.add(thr.k);
+  if ((board[pid] || []).length !== idx || anim) return;
+  const p = thr.p || {}, num = (v, a, b) => clamp(Number.isFinite(+v) ? +v : 0, a, b);
+  const prm = { x: num(p.x, -0.45, 0.45), v: num(p.v, 3, 11), a: num(p.a, -0.06, 0.06), s: num(p.s, -1, 1) };
+  const m = Number.isInteger(thr.m) ? thr.m & 1023 : currentMask(pid);
+  startAnim(simulate(prm, m, hashStr(gid + '|' + pid + '|' + idx)), pid, prm, null);
+}
+function resultLabel(res) {
+  const nb = popcount(res.before);
+  if (nb === 10 && res.fell === 10) return ['STRIKE!', '', 'red'];
+  if (nb < 10 && res.after === 0) return ['SPARE!', '', 'blue'];
+  if (res.fell === 0) return [res.gutter ? 'Gutter ball' : 'Missed!', '', 'blue'];
+  if (nb === 10 && isSplit(res.after)) return ['Split!', res.fell + ' pins', 'blue'];
+  return [res.fell + (res.fell === 1 ? ' pin' : ' pins'), '', 'blue'];
+}
+function showBanner(txt, sub, cls) {
+  const b = $('banner'); b.className = cls === 'blue' ? 'blue' : '';
+  b.innerHTML = esc(txt) + (sub ? `<span class="sub">${esc(sub)}</span>` : '');
+  requestAnimationFrame(() => b.classList.add('on'));
+}
+const hideBanner = () => $('banner').classList.remove('on');
+function startAnim(res, pid, prm, onCommit) {
+  hideBanner();
+  ballMesh.material = ballMaterial(colorOf(pid));
+  lastBall = { x: prm.x, z: 0.35 };
+  anim = { res, pid, prm, onCommit, t0: performance.now(), ended: false, mph: Math.round(prm.v * 2.237) };
+  audio();
+  let ti = res.frames.findIndex(f => f[1] > HEAD_Z - 0.3); if (ti < 0) ti = res.frames.length;
+  rollSound(ti / res.fps);
+  const clusters = [];
+  for (const [t, v] of res.hits) { const c = clusters[clusters.length - 1]; if (c && t - c[0] < 0.09) c[1] += v; else clusters.push([t, v]); }
+  clusters.slice(0, 6).forEach(([t, v]) => setTimeout(() => anim && crash(clamp(v / 14, 0.2, 1)), t * 1000));
+  refresh();
+}
+function onAnimEnd() {
+  const a = anim;
+  if (a.onCommit) a.onCommit();
+  const [t, s, c] = resultLabel(a.res);
+  showBanner(mode === 'online' && a.pid !== myPid ? t : t, mode === 'online' && a.pid !== myPid ? nameOf(a.pid) + (s ? ' · ' + s : '') : s, c);
+}
+
+// ================= render loop =================
+const tgtPos = hasGL ? new THREE.Vector3() : null, tgtLook = hasGL ? new THREE.Vector3() : null;
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (anim) {
+    const res = anim.res, el = Math.max(0, (now - anim.t0) / 1000);
+    let idx = Math.floor(el * res.fps);
+    if (idx >= res.frames.length) { idx = res.frames.length - 1; if (!anim.ended) { anim.ended = true; anim.endT = now; onAnimEnd(); } }
+    poseFrame(res, idx, Math.min(el, idx / res.fps));
+    const bz = lastBall.z, bx = lastBall.x;
+    const cz = Math.min(bz - 2.6, 14.6), k = smooth(9, 14.6, cz);
+    tgtPos.set(X3(bx) * (1 - k) * 0.8, lerp(0.95, 0.8, k), cz);
+    tgtLook.set(X3(bx) * (1 - k) * 0.6, 0.12, clamp(bz + 5, 8, 18.7));
+    camPos.lerp(tgtPos, 0.22); camLook.lerp(tgtLook, 0.22);
+    if (anim.ended && now - anim.endT > 1700) { anim = null; hideBanner(); refresh(); }
+  } else if (renderer) {
+    tgtPos.set(X3(shownAim()) * 0.6, 1.4, -3.1); tgtLook.set(X3(shownAim()) * 0.25, 0, 13);
+    camPos.lerp(tgtPos, 0.12); camLook.lerp(tgtLook, 0.12);
+    if (G && $('hud').classList.contains('on')) { placeBall(shownAim(), 0.35, 0); aimDots.position.x = X3(shownAim()); }
+  }
+  if (renderer) { camera.position.copy(camPos); camera.lookAt(camLook); renderer.render(scene, camera); }
+}
+function shownAim() { const c = curPid(); if (!c) return 0; if (isMyTurn()) return aimX; return clamp(+remoteAim[c] || 0, -0.45, 0.45); }
+function setIdleScene() {
+  if (!renderer || anim) return;
+  const c = curPid();
+  ballMesh.material = ballMaterial(c ? colorOf(c) : COLORS[0]);
+  idlePins(c ? currentMask(c) : 1023);
+  aimDots.visible = !!c && isMyTurn();
+}
+
+// ================= input: swipe + aim =================
+const trail = $('trail'), tctx = trail.getContext('2d');
+let gest = null;
+const canBowl = () => G && !anim && isMyTurn() && $('hud').classList.contains('on') && !document.querySelector('.modal.on');
+canvas.addEventListener('pointerdown', e => {
+  audio();
+  if (!canBowl()) return;
+  gest = { id: e.pointerId, pts: [{ x: e.clientX, y: e.clientY, t: performance.now() }], mode: null, ax: aimX };
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+});
+canvas.addEventListener('pointermove', e => {
+  if (!gest || e.pointerId !== gest.id) return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of (evs.length ? evs : [e])) gest.pts.push({ x: ev.clientX, y: ev.clientY, t: performance.now() });
+  const s = gest.pts[0], p = gest.pts[gest.pts.length - 1], dx = p.x - s.x, dy = p.y - s.y;
+  if (!gest.mode && Math.hypot(dx, dy) > 14) gest.mode = Math.abs(dx) > Math.abs(dy) * 1.1 ? 'aim' : (dy < 0 ? 'swipe' : 'none');
+  if (gest.mode === 'aim') { aimX = clamp(gest.ax + dx / window.innerWidth * 1.1, -0.42, 0.42); pushAim(); }
+  if (gest.mode === 'swipe') drawTrail(gest.pts);
+});
+const endGest = e => {
+  if (!gest || e.pointerId !== gest.id) return;
+  const g = gest; gest = null; clearTrail();
+  if (g.mode === 'swipe' && e.type === 'pointerup') analyzeSwipe(g.pts);
+};
+canvas.addEventListener('pointerup', endGest); canvas.addEventListener('pointercancel', endGest);
+function drawTrail(pts) {
+  const dpr = trail.width / window.innerWidth; tctx.clearRect(0, 0, trail.width, trail.height);
+  tctx.lineCap = 'round'; tctx.lineJoin = 'round';
+  for (let i = 1; i < pts.length; i++) {
+    const a = i / pts.length; tctx.strokeStyle = `rgba(255,255,255,${0.15 + a * 0.75})`; tctx.lineWidth = (4 + a * 10) * dpr;
+    tctx.beginPath(); tctx.moveTo(pts[i - 1].x * dpr, pts[i - 1].y * dpr); tctx.lineTo(pts[i].x * dpr, pts[i].y * dpr); tctx.stroke();
+  }
+}
+const clearTrail = () => tctx.clearRect(0, 0, trail.width, trail.height);
+function analyzeSwipe(P) {
+  if (P.length < 3) return;
+  const s = P[0], e = P[P.length - 1];
+  if (s.y - e.y < window.innerHeight * 0.1) { toast('Swipe further up the screen to bowl'); return; }
+  let k = P.length - 1; while (k > 0 && e.t - P[k].t < 110) k--;
+  const seg = P[k], pxms = Math.hypot(e.x - seg.x, e.y - seg.y) / Math.max(16, e.t - seg.t);
+  const sps = pxms * 1000 / window.innerHeight;           // screen-heights per second
+  const v = clamp(4.5 + (sps - 0.8) * 1.3, 4.5, 10.8);
+  let len = 0; const cum = [0]; for (let i = 1; i < P.length; i++) { len += Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y); cum.push(len); }
+  const mi = cum.findIndex(c => c >= len / 2), m = P[Math.max(1, Math.min(P.length - 2, mi))];
+  const a1 = Math.atan2(m.x - s.x, s.y - m.y), a2 = Math.atan2(e.x - m.x, m.y - e.y), ao = Math.atan2(e.x - s.x, s.y - e.y);
+  let spin = a2 - a1; spin = Math.abs(spin) < 0.12 ? 0 : spin - Math.sign(spin) * 0.12;
+  bowl({ x: aimX, v, a: clamp(ao * 0.085, -0.045, 0.045), s: clamp(spin * 1.5, -1, 1) });
+}
+function pushAim() { if (mode === 'online' && R) R.presence({ ax: +aimX.toFixed(3) }).catch(() => {}); }
+
+// ---- swing (motion) mode: only works where the page can read motion sensors ----
+const motionCapable = typeof window.DeviceMotionEvent !== 'undefined' && ('ontouchstart' in window) && !window.claude;
+let motionOn = false, gotMotion = false, mBuf = [];
+function onMotion(e) {
+  const r = e.rotationRate; if (!r) return; gotMotion = true;
+  mBuf.push({ t: performance.now(), a: r.alpha || 0, b: r.beta || 0, g: r.gamma || 0 });
+  if (mBuf.length > 240) mBuf.shift();
+  if (hold.classList.contains('held')) {
+    const now = performance.now(), pk = Math.max(0, ...mBuf.filter(s => now - s.t < 450).map(s => Math.hypot(s.a, s.b)));
+    $('meterBar').style.width = clamp((pk - 100) / 900, 0, 1) * 100 + '%';
+  }
+}
+async function enableMotion() {
+  try {
+    const req = typeof DeviceMotionEvent.requestPermission === 'function' ? DeviceMotionEvent.requestPermission() : null;
+    if (req && (await req) !== 'granted') throw 0;
+    if (!motionOn) { window.addEventListener('devicemotion', onMotion); motionOn = true; }
+    await new Promise(r => setTimeout(r, 600));
+    if (!gotMotion) throw 0;
+    return true;
+  } catch (e) { toast("Motion sensors aren't available on this page — swipe to bowl instead.", 3600); return false; }
+}
+const hold = $('holdBtn');
+hold.addEventListener('pointerdown', e => { e.preventDefault(); audio(); if (!canBowl()) return; mBuf = []; $('meterBar').style.width = '0%'; hold.classList.add('held'); });
+const release = () => {
+  if (!hold.classList.contains('held')) return; hold.classList.remove('held');
+  const now = performance.now(), rec = mBuf.filter(s => now - s.t < 450);
+  if (rec.length < 5) { toast('Hold the button, swing your arm forward, then let go'); return; }
+  const peak = Math.max(...rec.map(s => Math.hypot(s.a, s.b)));   // arm swing (pitch + yaw), ignoring wrist twist
+  if (peak < 120) { toast('Swing a little harder!'); return; }
+  const last = rec.filter(s => now - s.t < 130), gAvg = last.reduce((a, s) => a + s.g, 0) / Math.max(1, last.length);
+  let yaw = 0; rec.filter(s => now - s.t < 250).forEach(s => yaw += s.a / 60);
+  const sp = Math.abs(gAvg) < 50 ? 0 : -(gAvg - Math.sign(gAvg) * 50) / 350;
+  bowl({ x: aimX, v: clamp(4.5 + (peak - 150) / 850 * 6, 4.5, 10.8), a: clamp(-yaw * 0.0025, -0.045, 0.045), s: clamp(sp, -1, 1) });
+};
+hold.addEventListener('pointerup', release); hold.addEventListener('pointercancel', release); hold.addEventListener('pointerleave', release);
+
+// ================= HUD / screens =================
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  $('hud').classList.toggle('on', id === null);
+}
+function enterGame() { show(null); aimX = 0; refresh(); }
+function refresh() {
+  if (!G || !$('hud').classList.contains('on')) { if (mode === 'online' && G && $('sLobby').classList.contains('on')) enterGame(); else if (mode === 'online' && !G) renderLobby(); return; }
+  const cur = curPid(), online = onlineSet();
+  $('chips').innerHTML = G.order.map(pid => `<div class="chip${pid === cur ? ' cur' : ''}${mode === 'online' && !online.has(pid) ? ' off' : ''}"><span class="dot" style="background:${colorOf(pid)}"></span>${esc(nameOf(pid))}${mode === 'online' && pid === myPid ? ' (you)' : ''} <b>${totalOf(board[pid] || [])}</b></div>`).join('');
+  const st = cur ? frameState(board[cur] || []) : null;
+  $('framebox').textContent = cur ? `Frame ${st.f + 1}${st.b ? ' · Ball ' + (st.b + 1) : ''}` : 'Game over';
+  const pr = $('prompt'), mine = isMyTurn();
+  if (anim) pr.innerHTML = `<div class="big">${esc(nameOf(anim.pid))}</div><div class="small">${anim.mph} mph</div>`;
+  else if (!cur) pr.innerHTML = '';
+  else if (mine) {
+    const who = mode === 'local' ? `${esc(nameOf(cur))}'s turn` : 'Your turn!';
+    const how = inputMode === 'swing' ? 'Hold the button, swing your arm back and forward, let go to release.<br>Twist your wrist as you let go to hook.' : 'Drag sideways to line up · swipe up to bowl<br>Curve your swipe to hook the ball';
+    pr.innerHTML = `<div class="big">${who}</div><div class="small">${how}</div>`;
+  } else if (mode === 'online' && !G.order.includes(myPid)) pr.innerHTML = `<div class="big">Watching</div><div class="small">This game started before you joined — you're in the next one.</div>`;
+  else pr.innerHTML = `<div class="big">${esc(nameOf(cur))} is up</div><div class="small">Watch their throw live</div>`;
+  const showModes = motionCapable && mine && !anim;
+  $('modeRow').innerHTML = showModes ? `<button class="seg${inputMode === 'swipe' ? ' on' : ''}" data-m="swipe">👆 Swipe</button><button class="seg${inputMode === 'swing' ? ' on' : ''}" data-m="swing">💪 Swing</button>` : '';
+  hold.style.display = inputMode === 'swing' && mine && !anim ? 'block' : 'none';
+  $('meter').style.display = hold.style.display;
+  const sk = $('skipBtn');
+  if (mode === 'online' && cur && cur !== myPid && !anim && !online.has(cur) && Date.now() - (goneSince[cur] || Date.now()) > 10000) {
+    sk.style.display = 'block'; sk.textContent = `${nameOf(cur)} left — skip their turn`; sk.dataset.pid = cur;
+  } else sk.style.display = 'none';
+  setIdleScene(); drawBoard();
+  if ($('mCard').classList.contains('on')) renderCard();
+  if (!cur && !anim && overShownFor !== G.gid) { overShownFor = G.gid; showOver(); }
+}
+$('modeRow').addEventListener('click', async e => {
+  const m = e.target.closest('[data-m]'); if (!m) return;
+  if (m.dataset.m === 'swing') { if (await enableMotion()) inputMode = 'swing'; }
+  else inputMode = 'swipe';
+  refresh();
+});
+function renderCard() {
+  const cur = curPid();
+  let h = '<table class="score"><tr><th></th>' + Array.from({ length: 10 }, (_, i) => `<th>${i + 1}</th>`).join('') + '<th>Total</th></tr>';
+  for (const pid of G.order) {
+    const r = board[pid] || [], mk = marks(r), cu = cumulative(r);
+    h += `<tr class="${pid === cur ? 'cur' : ''}"><td class="name"><span class="dot" style="display:inline-block;vertical-align:-2px;margin-right:6px;background:${colorOf(pid)}"></span>${esc(nameOf(pid))}</td>`;
+    for (let f = 0; f < 10; f++) h += `<td><div class="fr"><div class="m">${mk[f].map(x => `<span>${x}</span>`).join('')}</div><div class="t">${cu[f] ?? ''}</div></div></td>`;
+    h += `<td class="tot">${totalOf(r)}</td></tr>`;
+  }
+  $('scoreTable').innerHTML = h + '</table>';
+}
+function showOver() {
+  const rows = G.order.map(pid => [pid, totalOf(board[pid] || [])]).sort((a, b) => b[1] - a[1]);
+  $('standings').innerHTML = rows.map(([pid, s], i) => `<li><span>${['🥇', '🥈', '🥉'][i] || '　'} <span class="dot" style="display:inline-block;background:${colorOf(pid)}"></span> ${esc(nameOf(pid))}</span><b>${s}</b></li>`).join('');
+  $('mOver').classList.add('on');
+}
+const modal = (id, on) => $(id).classList.toggle('on', on);
+$('bCard').onclick = () => { renderCard(); modal('mCard', true); };
+$('bCloseCard').onclick = () => modal('mCard', false);
+$('bMenu').onclick = () => {
+  $('menuInfo').textContent = mode === 'online' ? `Room ${roomCode.toUpperCase()} — friends scan this code to join the next game.` : 'Pass & play on this phone.';
+  if (mode === 'online') renderQR($('qrMenu')); else { $('qrMenu').innerHTML = ''; $('qrMenu').dataset.code = ''; }
+  modal('mMenu', true);
+};
+$('bResume').onclick = () => modal('mMenu', false);
+$('bQuit').onclick = () => { modal('mMenu', false); leave(); };
+$('bOverQuit').onclick = () => { modal('mOver', false); leave(); };
+$('bOverCard').onclick = () => { modal('mOver', false); renderCard(); modal('mCard', true); };
+$('bAgain').onclick = () => {
+  modal('mOver', false);
+  if (mode === 'local') startLocal(G.order.map(nameOf));
+  else startOnline();
+};
+$('skipBtn').onclick = () => {
+  const pid = $('skipBtn').dataset.pid; if (!pid || pid !== curPid()) return;
+  const r = (board[pid] || []).slice(), f0 = frameState(r).f;
+  for (let i = 0; i < 3; i++) { const st = frameState(r); if (st.done || st.f !== f0) break; r.push(0); }
+  board[pid] = r; masks[pid] = { n: r.length, m: 1023 }; persist(); push(); refresh();
+};
+
+// ================= self-hosted rooms over WebSocket (same shape as Claude's room API) =================
+let SELF_HOSTED = false;
+function wsRooms() {
+  return new Promise(resolve => {
+    const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+    let ws = null, open = false, myId = null, settled = false;
+    const rooms = {};
+    const send = o => { if (open) try { ws.send(JSON.stringify(o)); } catch (e) {} };
+    const deliver = r => r.cbs.slice().forEach(cb => { try { cb({ peers: r.list, joined: [], left: [], updated: [] }); } catch (e) { console.error(e); } });
+    const connect = () => {
+      try { ws = new WebSocket(url); } catch (e) { if (!settled) { settled = true; resolve(null); } return; }
+      ws.onopen = () => {
+        open = true;
+        for (const r of Object.values(rooms)) send({ t: 'join', room: r.name, p: r.pres });
+        if (!settled) { settled = true; resolve(api); }
+      };
+      ws.onmessage = e => {
+        let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+        if (m.t === 'hello') myId = m.id;
+        else if (m.t === 'peers' && rooms[m.room] && Array.isArray(m.peers)) {
+          const r = rooms[m.room];
+          r.list = Object.freeze(m.peers.map(p => Object.freeze({ peer: String(p.id), by: null, isMe: p.id === myId, sameTab: p.id === myId, kind: 'viewer', guest: false, presence: p.p && typeof p.p === 'object' ? p.p : {}, updatedAt: Date.now() })));
+          deliver(r);
+        }
+      };
+      ws.onclose = () => { open = false; if (!settled) { settled = true; resolve(null); return; } setTimeout(connect, 1500); };
+      ws.onerror = () => {};
+    };
+    const api = {
+      join(name) {
+        const r = rooms[name] || (rooms[name] = { name, pres: {}, cbs: [], list: Object.freeze([]), timer: null });
+        send({ t: 'join', room: name, p: r.pres });
+        return Promise.resolve({
+          name,
+          presence(patch) {
+            for (const k in patch) { if (patch[k] === null) delete r.pres[k]; else r.pres[k] = patch[k]; }
+            if (!r.timer) r.timer = setTimeout(() => { r.timer = null; send({ t: 'presence', room: name, p: r.pres }); }, 40);
+            return Promise.resolve();
+          },
+          onPeers(fn) { r.cbs.push(fn); setTimeout(() => fn({ peers: r.list, joined: [], left: [], updated: [] }), 0); return () => { r.cbs = r.cbs.filter(x => x !== fn); }; },
+          peers() { return r.list; },
+          connected() { return open; },
+          leave() { delete rooms[name]; send({ t: 'leave', room: name }); return Promise.resolve(); },
+        });
+      },
+    };
+    connect();
+    setTimeout(() => { if (!settled) { settled = true; resolve(null); } }, 6000);
+  });
+}
+
+// ================= online rooms =================
+function onlineSet() {
+  const s = new Set(); if (mode !== 'online' || !R) return s;
+  try { for (const p of R.peers()) if (p.presence && typeof p.presence.pid === 'string') s.add(p.presence.pid); } catch (e) {}
+  s.add(myPid); return s;
+}
+setInterval(() => {
+  if (mode !== 'online' || !G) return;
+  const on = onlineSet(), now = Date.now();
+  for (const pid of G.order) { if (on.has(pid)) delete goneSince[pid]; else if (!goneSince[pid]) goneSince[pid] = now; }
+  if (!anim && $('hud').classList.contains('on')) refresh();
+}, 1000);
+
+function push() {
+  if (mode !== 'online' || !R) return;
+  const pres = { pid: myPid, n: myName, j: joinedAt, ax: +aimX.toFixed(3), game: G || null, board: G ? board : null, masks: G ? masks : null, thr: myThr || null };
+  R.presence(pres).catch(err => { if (err && err.code === 'invalid_argument') toast('Too much game data to sync — try fewer players.'); });
+}
+const validRolls = r => Array.isArray(r) && r.length <= 21 && r.every(v => Number.isInteger(v) && v >= 0 && v <= 10);
+function validGame(g) {
+  return g && typeof g.gid === 'string' && /^[a-z0-9]{4,12}$/.test(g.gid) && Number.isFinite(g.t) && Array.isArray(g.order) && g.order.length >= 1 && g.order.length <= 8 &&
+    g.order.every(p => typeof p === 'string' && /^[a-z0-9]{4,16}$/.test(p)) && g.names && typeof g.names === 'object';
+}
+const newer = (a, b) => a.t > b.t || (a.t === b.t && a.gid > b.gid);
+function mergeFrom(pr) {
+  let ch = false; const g = pr.game;
+  if (validGame(g) && (!G || (g.gid !== G.gid && newer(g, G)))) {
+    G = { gid: g.gid, t: g.t, order: g.order.slice(), names: Object.fromEntries(g.order.map(p => [p, cleanName(g.names[p])])) };
+    board = {}; masks = {}; seenThr = new Set(); myThr = null; overShownFor = null; modal('mOver', false); ch = true;
+  }
+  if (G && g && g.gid === G.gid) {
+    const bd = pr.board || {}, ms = pr.masks || {};
+    for (const pid of G.order) {
+      const r = bd[pid];
+      if (validRolls(r) && r.length > (board[pid] || []).length) { board[pid] = r.slice(); ch = true; }
+      const m = ms[pid];
+      if (m && Number.isInteger(m.n) && Number.isInteger(m.m) && m.n === (board[pid] || []).length && (!masks[pid] || masks[pid].n !== m.n)) { masks[pid] = { n: m.n, m: m.m & 1023 }; ch = true; }
+    }
+  }
+  return ch;
+}
+function onPeers(ch) {
+  let changed = false; const byPid = {};
+  for (const p of ch.peers) {
+    if (p.kind !== 'viewer') continue;
+    const pr = p.presence || {};
+    if (typeof pr.pid !== 'string' || !/^[a-z0-9]{4,16}$/.test(pr.pid)) continue;
+    const j = Number.isFinite(+pr.j) ? +pr.j : 0;
+    if (!byPid[pr.pid] || byPid[pr.pid].j < j) byPid[pr.pid] = { pid: pr.pid, name: cleanName(pr.n), j, me: pr.pid === myPid };
+    if (pr.pid !== myPid) { remoteAim[pr.pid] = pr.ax; if (mergeFrom(pr)) changed = true; }
+  }
+  if (!byPid[myPid]) byPid[myPid] = { pid: myPid, name: myName, j: joinedAt, me: true };
+  lobbyPeers = Object.values(byPid).sort((a, b) => a.j - b.j || (a.pid < b.pid ? -1 : 1));
+  if (changed) { persist(); push(); }
+  for (const p of ch.peers) if (p.presence && p.presence.pid !== myPid) maybeReplay(p.presence.thr);
+  refresh();
+}
+const ART_URL = 'https://claude.ai/artifact/JQQ8bAJgGJy2dLk5eSb4mv';
+const joinUrl = () => (SELF_HOSTED ? location.origin + location.pathname : ART_URL) + '#room-' + roomCode;
+function renderQR(el) {
+  if (!roomCode) { el.innerHTML = ''; return; }
+  if (el.dataset.code === roomCode) return; el.dataset.code = roomCode;
+  try {
+    const q = window.qrcode(0, 'M'); q.addData(joinUrl()); q.make();
+    el.innerHTML = q.createSvgTag(6, 8);
+  } catch (e) { el.innerHTML = `<div class="note" style="word-break:break-all">${esc(joinUrl())}</div>`; }
+}
+function renderLobby() {
+  $('lobbyCode').textContent = (roomCode || '').toUpperCase();
+  renderQR($('qrLobby'));
+  $('lobbyList').innerHTML = lobbyPeers.slice(0, 8).map((p, i) => `<li><span class="dot" style="background:${COLORS[i % 8]}"></span>${esc(p.name)}${p.me ? '<span class="you">you</span>' : ''}</li>`).join('');
+  const n = lobbyPeers.length;
+  $('lobbyStatus').textContent = n < 2 ? 'Waiting for friends… you can also start solo.' : `${n} bowlers ready${n > 8 ? ' (first 8 will play)' : ''}.`;
+}
+async function joinRoom(code) {
+  if (!saveName()) return;
+  if (!RNS) { toast("Rooms aren't available here — try pass & play."); return; }
+  code = code.toLowerCase().replace(/[^a-z]/g, '');
+  if (code.length !== 4) { toast('Room codes are 4 letters'); return; }
+  $('bCreate').disabled = $('bJoin').disabled = true;
+  try { R = await RNS.join('bowl-' + code); }
+  catch (e) { toast(e && e.code === 'not_permitted' ? "You can't join rooms on this page." : "Couldn't connect to the room — try again."); $('bCreate').disabled = $('bJoin').disabled = false; return; }
+  $('bCreate').disabled = $('bJoin').disabled = false;
+  mode = 'online'; roomCode = code; joinedAt = Date.now(); myThr = null; seenThr = new Set(); overShownFor = null;
+  const saved = LS.get('bowl.room.' + code, null);
+  if (saved && validGame(saved.G) && Date.now() - (saved.at || 0) < 6 * 3600e3) { G = saved.G; board = saved.board || {}; masks = saved.masks || {}; }
+  else { G = null; board = {}; masks = {}; }
+  lobbyPeers = [{ pid: myPid, name: myName, j: joinedAt, me: true }];
+  R.onPeers(onPeers, () => toast('Lost the connection to the room.'));
+  push();
+  try { location.hash = 'room-' + code; } catch (e) {}
+  if (G) enterGame(); else { show('sLobby'); renderLobby(); }
+}
+function startOnline() {
+  const ps = lobbyPeers.filter(p => onlineSet().has(p.pid)).slice(0, 8);
+  if (!ps.some(p => p.pid === myPid)) ps.unshift({ pid: myPid, name: myName });
+  G = { gid: 'g' + rid(6), t: Date.now(), order: ps.map(p => p.pid), names: Object.fromEntries(ps.map(p => [p.pid, p.pid === myPid ? myName : p.name])) };
+  board = {}; masks = {}; seenThr = new Set(); myThr = null; overShownFor = null;
+  persist(); push(); enterGame();
+}
+function leave() {
+  hideBanner(); anim = null;
+  if (mode === 'online') {
+    if (R) { try { R.presence({ game: null, board: null, masks: null, thr: null }); } catch (e) {} R.leave().catch(() => {}); }
+    R = null; roomCode = null;
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { try { location.hash = ''; } catch (_) {} }
+  }
+  mode = null; G = null; board = {}; masks = {}; drawBoard();
+  show('sHome'); updateHome();
+}
+
+// ================= local pass & play =================
+let localNames = [];
+function renderLocalList() {
+  $('localList').innerHTML = localNames.map((n, i) => `<li><span class="dot" style="background:${COLORS[i % 8]}"></span>${esc(n)}<button class="x" data-i="${i}" aria-label="Remove">×</button></li>`).join('');
+  $('bStartLocal').disabled = localNames.length === 0;
+  const saved = LS.get('bowl.local', null);
+  $('bResumeLocal').style.display = saved && validGame(saved.G) && saved.G.order.some(p => !frameState((saved.board || {})[p] || []).done) ? 'block' : 'none';
+}
+$('localList').onclick = e => { const b = e.target.closest('[data-i]'); if (b) { localNames.splice(+b.dataset.i, 1); renderLocalList(); } };
+function addLocal() { const n = cleanName($('localName').value); if (!$('localName').value.trim()) return; if (localNames.length >= 8) { toast('8 players max'); return; } localNames.push(n); $('localName').value = ''; renderLocalList(); }
+$('bAddLocal').onclick = addLocal;
+$('localName').addEventListener('keydown', e => { if (e.key === 'Enter') addLocal(); });
+function startLocal(names) {
+  mode = 'local';
+  G = { gid: rid(6), t: Date.now(), order: names.map((_, i) => 'local' + i), names: Object.fromEntries(names.map((n, i) => ['local' + i, n])) };
+  board = {}; masks = {}; overShownFor = null; persist(); enterGame();
+}
+$('bStartLocal').onclick = () => { if ($('localName').value.trim()) addLocal(); if (localNames.length) startLocal(localNames.slice()); };
+$('bResumeLocal').onclick = () => { const s = LS.get('bowl.local', null); if (!s) return; mode = 'local'; G = s.G; board = s.board || {}; masks = s.masks || {}; overShownFor = null; enterGame(); };
+$('bBackLocal').onclick = () => show('sHome');
+$('bLocal').onclick = () => {
+  const n = cleanName($('nameIn').value);
+  if ($('nameIn').value.trim()) { saveName(); if (!localNames.length) localNames = [n]; }
+  show('sLocal'); renderLocalList();
+};
+
+// ================= home =================
+function saveName() {
+  const raw = $('nameIn').value.trim();
+  if (!raw) { toast('Type your name first'); $('nameIn').focus(); return false; }
+  myName = cleanName(raw); LS.set('bowl.name', myName); return true;
+}
+function updateHome() { $('bCreate').disabled = $('bJoin').disabled = !RNS; }
+$('nameIn').value = myName || '';
+$('bCreate').onclick = () => joinRoom(rid(4, 'abcdefghjkmnpqrstuvwxyz'));
+$('bJoin').onclick = () => joinRoom($('codeIn').value);
+$('codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom($('codeIn').value); });
+$('bStart').onclick = startOnline;
+$('bLeave').onclick = leave;
+const hm = /^#room-([a-z]{4})$/.exec(location.hash || '');
+const linkCode = hm ? hm[1] : null;
+if (linkCode) { $('codeIn').value = linkCode.toUpperCase(); $('bJoin').textContent = 'Join'; }
+$('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter' && linkCode && RNS) joinRoom(linkCode); });
+
+async function initRooms() {
+  const note = $('roomNote');
+  if (window.claude && typeof window.claude.use === 'function') {
+    try { RNS = await window.claude.use('room'); } catch (e) { RNS = null; }
+    if (!RNS) { note.textContent = "Live rooms aren't available in this view — open the page signed in to Claude, or use pass & play."; updateHome(); return; }
+  } else if (/^https?:$/.test(location.protocol)) {
+    RNS = await wsRooms();
+    if (!RNS) { note.textContent = "Couldn't reach the game server — pass & play still works."; updateHome(); return; }
+    SELF_HOSTED = true;
+  } else { note.textContent = 'Open this page from the game server to play with friends. Pass & play works anywhere.'; return; }
+  note.textContent = 'Start a room, then friends scan its QR code with their phone camera.';
+  updateHome();
+  if (linkCode && mode === null) {
+    if (myName) joinRoom(linkCode);
+    else { note.innerHTML = `<b>You're invited to room ${esc(linkCode.toUpperCase())}!</b> Type your name, then tap Join.`; $('nameIn').focus(); }
+  }
+}
+
+// ================= boot =================
+if (hasGL) { buildScene(); idlePins(1023); placeBall(0, 0.35, 0); requestAnimationFrame(loop); }
+else toast('Could not load the 3D engine — check your connection and reload.', 8000);
+initRooms();
+document.addEventListener('gesturestart', e => e.preventDefault());
+})();
+
+</script>
+</body>
+</html>
